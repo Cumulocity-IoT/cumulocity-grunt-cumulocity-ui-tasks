@@ -1,6 +1,6 @@
 {
   "name": "grunt-cumulocity-ui-tasks",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Grunt tasks for cumulocity UI platform",
   "author": "Cumulocity, GmbH",
   "license": "MIT",
@@ -25,6 +25,5 @@
     "grunt-contrib-watch": "^0.6.1",
     "grunt-contrib-connect": "^0.7.1",
     "grunt-angular-templates": "^0.5.5",
-    "grunt-string-replace": "^0.2.7"
   }
 }
