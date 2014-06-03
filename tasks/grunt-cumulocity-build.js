@@ -144,9 +144,11 @@ function buildPlugin(grunt, _plugin) {
     var ngview_cfg = {},
       ngview_task = ['ngtemplates', 'plugin_' + _plugin];
     grunt.config(ngview_task.join('.'),{
-      src: '<%= paths.plugins%>/' + _plugin + '/views/**.html',
+      cwd: '<%= paths.plugins %>/' + _plugin + '/',
+      src: ['views/*.html','views/**.html'],
       dest:'<%= paths.temp%>/plugins/'  + _plugin + '/views.js',
       options: {
+        prefix: ['/apps', _app, _plugin, ''].join('/'),
         module: plugin.ngModules[0],
         bootstrap: function(module, script) {
           script = "angular.module('" + module + "').run(['$templateCache', function($templateCache) {" +
@@ -228,9 +230,13 @@ function buildPlugin(grunt, _plugin) {
       });
     }
 
-    console.log(copy_cfg);
     grunt.config(copy_task.join('.'), copy_cfg);
     tasks.push(copy_task.join(':'));
+  }
+
+  var jsPath = grunt.template.process('<%= paths.build %>/' + _plugin + '/main.js');
+  if (plugin.js) {
+    tasks.push('pluginReplaceString:' + _plugin);
   }
 
   if (tasks.length) {
@@ -244,14 +250,39 @@ function buildPlugin(grunt, _plugin) {
 
 function replaceStringsInCode(_app, _plugin, code) {
   var map = {
-    ':::PLUGIN_PATH:::': ['/app',_app,_plugin,''].join('/')
+    ':::PLUGIN_PATH:::': ['/apps',_app,_plugin].join('/')
   };
 
-  Object.keys(map).forEach(function (key, replace) {
-    code = code.replace(new RegExp(key, 'g'), replace);
+  Object.keys(map).forEach(function (key) {
+    code = code.replace(new RegExp(key, 'g'), map[key]);
   });
 
   return code;
+}
+
+function replaceStringTask(grunt, _plugin) {
+  if (!grunt.config('localApplication')) {
+    grunt.config('localApplication', grunt.file.readJSON('cumulocity.json'));
+  }
+
+  var _app = grunt.config('localApplication').contextPath,
+    plugin,
+    manPath = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json');
+
+  if (grunt.config('localPlugins')) {
+    plugin = _.find(grunt.config('localPlugins'), function (p) {
+      return p.contextPath === _plugin;
+    });
+  } else if (grunt.file.exists(manPath)) {
+    plugin = {
+      manifest: grunt.file.readJSON(manPath)
+    };
+  }
+
+  var jsPath = grunt.template.process('<%= paths.build %>/' + _plugin + '/main.js');
+
+  grunt.file.write(jsPath, replaceStringsInCode(_app, _plugin, grunt.file.read(jsPath)));
+
 }
 
 
@@ -269,6 +300,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('pluginPre', 'Preprocesses a plugin', _.partial(preProcess, grunt));
   grunt.registerTask('pluginBuild', 'Builds a plugin for deployment', _.partial(buildPlugin, grunt));
+  grunt.registerTask('pluginReplaceString', 'Replaces string for plugin path', _.partial(replaceStringTask, grunt));
 
   grunt.registerTask('pluginPreAll', [
     'readPlugins',
