@@ -1,0 +1,167 @@
+var Q = require('q'),
+  inquirer = require('inquirer'),
+  cumulocityServer = require('../lib/cumulocityServer');
+
+module.exports = function (grunt) {
+  'use strict';
+
+  function getCredentials() {
+    var defer = Q.defer(),
+      userConfig = grunt.file.readJSON('.cumulocity');
+
+    if (userConfig.tenant && userConfig.user) {
+      defer.resolve(userConfig);
+    } else {
+      inquirer.prompt([
+        {message: 'What is your cumulocity tenant?', name: 'tenant'},
+        {message: 'What is your username?', name: 'user'}
+      ], function (answers) {
+        grunt.file.write('.cumulocity', JSON.stringify(answers, null, 2));
+        defer.resolve(answers);
+      });
+    }
+
+    return defer.promise;
+  }
+
+  function getPassword() {
+    var defer = Q.defer();
+
+    if (process.env.C8Y_PASS) {
+      defer.resolve(process.env.C8Y_PASS);
+    } else {
+      inquirer.prompt([
+        {message: 'What is your password?', name: 'password', type: 'password'}
+      ], function (answers) {
+        var pass = process.env.C8Y_PASS = answers.password;
+        defer.resolve(pass);
+      });
+    }
+
+    return defer.promise;
+  }
+
+  function checkCredentials() {
+    return getCredentials().then(function (credentials) {
+      return getPassword().then(function (password) {
+        cumulocityServer.init(credentials.tenant, credentials.user, password);
+        return true;
+      });
+    });
+  }
+
+  function applicationSave(app) {
+    return cumulocityServer.saveApplication(app).then(function (_app) {
+      if (!app._id && _app.id) {
+        app._id = _app.id;
+      }
+      grunt.file.write('cumulocity.json', JSON.stringify(app, null, 2));
+      return app;
+    });
+  }
+
+  function pluginSave(plugin) {
+    var pManifest = grunt.template.process([
+        '<%= paths.plugins %>/',
+        plugin.directoryName ,
+        '/cumulocity.json',
+      ].join(''), grunt.config);
+
+    return cumulocityServer.savePlugin(plugin).then(function (_plugin) {
+      if (!plugin._id) {
+        plugin._id = _plugin.id;
+        delete plugin.directoryName;
+        delete plugin._app_id;
+        grunt.file.write(pManifest, JSON.stringify(plugin, null, 2));
+      }
+      return plugin;
+    });
+  }
+
+  function onError(err) {
+    grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
+  }
+
+  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function () {
+    var appConfig = 'cumulocity.json',
+      done = this.async();
+
+    if (grunt.file.exists(appConfig)) {
+      var app = grunt.file.readJSON(appConfig);
+    } else {
+      grunt.fail.fatal('Application cumulocity.json file not found.');
+    }
+
+    checkCredentials().then(function () {
+      grunt.log.writeln('Credentials registered');
+      grunt.log.writeln('Registering application.');
+
+      return applicationSave(app).then(function () {
+        grunt.log.ok('Application registered');
+        return done();
+      });
+    }, onError);
+  });
+
+  grunt.registerTask('c8yPluginRegister', 'Task to register and update specified plugin', function (_plugin) {
+
+    if (!_plugin) {
+      grunt.fail.fatal('You must supply a plugin name');
+    }
+
+    var appConfig = 'cumulocity.json',
+      pluginConfig = grunt.template.process('<%=paths.plugins%>/' + _plugin + '/cumulocity.json', grunt.config),
+      app,
+      plugin,
+      done = this.async();
+
+    if (grunt.file.exists(appConfig)) {
+      app = grunt.file.readJSON(appConfig);
+    } else {
+      grunt.fail.fatal('Application cumulocity.json file not found.');
+    }
+
+    if (grunt.file.exists(pluginConfig)) {
+      plugin = grunt.file.readJSON(pluginConfig);
+      plugin.directoryName = _plugin;
+    } else {
+      grunt.fail.fatal('Plugin ' + _plugin + ' file not found');
+    }
+
+    checkCredentials().then(function () {
+      grunt.log.writeln('Credentials registered');
+      grunt.log.writeln('Registering plugin.');
+
+      plugin._app_id = app._id;
+
+      return pluginSave(plugin).then(function () {
+        grunt.log.ok('Plugin ' + _plugin + ' successfully registered');
+        done();
+      }, onError);
+    }, onError);
+
+  });
+
+  grunt.registerTask('pluginRegister', function (_plugin) {
+    if (!_plugin) {
+      grunt.fail.fatal('You must supply a plugin name');
+    }
+    grunt.task.run('c8yAppRegister');
+    grunt.task.run('c8yPluginRegister:' + _plugin);
+  });
+
+  grunt.registerTask('_pluginRegisterAll', function () {
+    grunt.task.run('c8yAppRegister');
+    grunt.config('localPlugins').forEach(function (p) {
+      grunt.task.run('c8yPluginRegister:' + p.contextPath);
+    });
+  });
+
+  grunt.registerTask('pluginRegisterAll', [
+    'readPlugins',
+    '_pluginRegisterAll'
+  ]);
+
+  grunt.registerTask('appRegister', ['c8yAppRegister']);
+
+};
