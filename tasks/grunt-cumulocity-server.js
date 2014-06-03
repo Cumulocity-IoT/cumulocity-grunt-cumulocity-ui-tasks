@@ -13,6 +13,8 @@ function setupConnect(grunt) {
       pathMatch = _path.match(/^\/apps\/(\w+)\/?/),
       appPath = pathMatch && pathMatch[1];
 
+    req.orig_url = req.url;
+
     if (appPath) {
       req.appContextPath = appPath;
       req.url = req.url.replace(new RegExp('\/apps\/' + appPath + '\/?'), '/');
@@ -58,12 +60,22 @@ function setupConnect(grunt) {
         'application',
         'tenant',
         'cep',
-        'apps'
-      ],
+        'apps',
+        'index.html'
+      ];
 
-      proxied = _.any(toProxy, function (a) { return req.url.match(new RegExp('^/' + a)); });
+    req.url = req.orig_url;
+    var proxied = _.any(toProxy, function (a) { return req.url.match(new RegExp('^/' + a)); });
 
     if (proxied && !req.pluginContextPath) {
+
+      delete req.headers.host;
+
+      if (req.url.match('index.html')) {
+        req.url = '/apps/core/index.html';
+        delete req._parsedUrl;
+      }
+
 
       if (req.url.match('manifest')) {
         var _write = res.write,
@@ -125,7 +137,7 @@ function setupConnect(grunt) {
 
     if (app && plugin) {
       var map = {
-        ':::PLUGIN_PATH:::': ['/app',app,plugin,''].join('/')
+        ':::PLUGIN_PATH:::': ['/apps',app,plugin,''].join('/')
       };
       return mntProcess('plugins', function (path, text, send) {
         Object.keys(map).forEach(function (k) {
@@ -134,6 +146,7 @@ function setupConnect(grunt) {
         send(text);
       })(req, res, next);
     }
+
     next();
   }
 
@@ -142,13 +155,13 @@ function setupConnect(grunt) {
     return [
       findApp,
       pluginFiles,
-      proxyServerRequest,
       placeholders,
       bower_components,
       mount('<%= paths.temp %>'),
       mount('<%= paths.temp %>/plugins'),
       mount('<%= paths.root %>'),
-      mount('<%= paths.plugins %>')
+      mount('<%= paths.plugins %>'),
+      proxyServerRequest
     ];
   }
 
