@@ -1,0 +1,28 @@
+{
+  "name": "grunt-cumulocity-ui-tasks",
+  "version": "0.0.3",
+  "description": "Grunt tasks for cumulocity UI platform",
+  "author": "Cumulocity, GmbH",
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.10"
+  },
+  "dependencies": {
+    "connect-static-transform": "^0.7.0",
+    "http-proxy": "^1.1.4",
+    "inquirer": "^0.5.1",
+    "lodash": "^2.4.1",
+    "q": "^1.0.1",
+    "request": "^2.36.0"
+  },
+  "peerDependencies": {
+    "grunt": "^0.4.0",
+    "grunt-contrib-clean": "^0.5.0",
+    "grunt-contrib-copy": "^0.5.0",
+    "grunt-contrib-cssmin": "^0.9.0",
+    "grunt-contrib-less": "^0.11.1",
+    "grunt-contrib-uglify": "^0.4.0",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-contrib-connect": "^0.7.1"
+  }
+}
