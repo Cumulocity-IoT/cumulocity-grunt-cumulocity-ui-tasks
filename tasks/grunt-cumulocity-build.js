@@ -77,36 +77,31 @@ function buildPlugin(grunt, _plugin) {
     return;
   }
 
+  if (!grunt.config('localApplication')) {
+    grunt.config('localApplication', grunt.file.readJSON('cumulocity.json'));
+  }
 
-  var plugin = _.find(grunt.config('localPlugins'), function (p) {
-      return p.contextPath === _plugin;
-    }),
+  var _app = grunt.config('localApplication').contextPath,
+    plugin,
     tasks = [],
-    hasLess = false;
+    hasLess = false,
+    manPath = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json');
+
+  if (grunt.config('localPlugins')) {
+    plugin = _.find(grunt.config('localPlugins'), function (p) {
+      return p.contextPath === _plugin;
+    });
+  } else if (grunt.file.exists(manPath)) {
+    plugin = {
+      manifest: grunt.file.readJSON(manPath)
+    };
+  }
 
   if (!plugin) {
     grunt.fail.fatal('Plugin not found: ' + _plugin);
   }
 
   plugin = plugin.manifest;
-
-  if (plugin.js) {
-    var jsFileList = plugin.js.map(function (f) {
-        var isBower = f.match('bower_components');
-        return isBower ? '<%= paths.root %>/' + f : '<%= paths.plugins %>/' + _plugin + '/' + f;
-      }),
-      cfg = {
-        files: [
-          {
-            dest: '<%= paths.build %>/' + _plugin + '/main.js',
-            src: jsFileList
-          }
-        ]
-      },
-      task = ['uglify', 'plugin_' + _plugin];
-    grunt.config(task.join('.'), cfg);
-    tasks.push(task.join(':'));
-  }
 
   if (plugin.less) {
     grunt.config('less.plugin_' + _plugin, {
@@ -132,18 +127,110 @@ function buildPlugin(grunt, _plugin) {
       css_cfg = {
         files: [
           {
-            dest: '<%= paths.build %>/' + _plugin + '/main.js',
+            dest: '<%= paths.build %>/' + _plugin + '/style.css',
             src: cssFileList
           }
         ]
       },
       css_task = ['cssmin', 'plugin_' + _plugin];
     if (hasLess) {
-
       cssFileList.push('<%= paths.temp %>/plugins/' + _plugin + '/style-less.css');
     }
     grunt.config(css_task.join('.'), css_cfg);
     tasks.push(css_task.join(':'));
+  }
+
+  if (plugin.ngModules && grunt.file.exists(grunt.template.process('<%= paths.plugins%>/' + _plugin + '/views'))) {
+    var ngview_cfg = {},
+      ngview_task = ['ngtemplates', 'plugin_' + _plugin];
+    grunt.config(ngview_task.join('.'),{
+      src: '<%= paths.plugins%>/' + _plugin + '/views/**.html',
+      dest:'<%= paths.temp%>/plugins/'  + _plugin + '/views.js',
+      options: {
+        module: plugin.ngModules[0],
+        bootstrap: function(module, script) {
+          script = "angular.module('" + module + "').run(['$templateCache', function($templateCache) {" +
+            script + '\n}]);';
+          return replaceStringsInCode(_app, _plugin, script);
+        },
+        htmlmin: {
+          collapseBooleanAttributes:      true,
+          collapseWhitespace:             true,
+          removeAttributeQuotes:          true,
+          removeComments:                 true,
+          removeEmptyAttributes:          true,
+          removeRedundantAttributes:      true,
+          removeScriptTypeAttributes:     true,
+          removeStyleLinkTypeAttributes:  true
+        }
+      }
+    });
+    tasks.push(ngview_task.join(':'));
+  }
+
+  if (plugin.js) {
+    var jsFileList = plugin.js.map(function (f) {
+        var isBower = f.match('bower_components');
+        return isBower ? '<%= paths.root %>/' + f : '<%= paths.plugins %>/' + _plugin + '/' + f;
+      }),
+      cfg = {
+        files: [
+          {
+            dest: '<%= paths.build %>/' + _plugin + '/main.js',
+            src: jsFileList
+          }
+        ]
+      },
+      task = ['uglify', 'plugin_' + _plugin];
+
+    if (plugin.ngModules) {
+      jsFileList.push('<%= paths.temp%>/plugins/'  + _plugin + '/views.js');
+    }
+
+    grunt.config(task.join('.'), cfg);
+    tasks.push(task.join(':'));
+  }
+
+  if (plugin.gallery || plugin.copy) {
+    var copy_task = ['copy', 'plugin_' + _plugin],
+      copy_cfg = {files: []};
+
+    if (plugin.gallery) {
+      copy_cfg.files.push({
+        expand: true,
+        dest: '<%= paths.build %>',
+        cwd: '<%= paths.plugins %>',
+        src: [_plugin + '/gallery/**']
+      });
+    }
+
+    if (plugin.copy) {
+      plugin.copy.map(function (c) {
+        if (typeof c === 'string') {
+          return {
+            expand: true,
+            cwd: '<%= paths.plugins %>',
+            src: [_plugin + '/' + c],
+            dest: '<%= paths.build %>'
+          };
+        }
+
+        if (typeof c === 'object') {
+          return {
+            expand: true,
+            cwd: '<%= paths.root %>/' + c.cwd,
+            src: [c.files],
+            dest: '<%= paths.build %>/' + _plugin
+          };
+        }
+      }).forEach(function (c) {
+        copy_cfg.files.push(c);
+      });
+    }
+
+    console.log(copy_cfg);
+    grunt.config(copy_task.join('.'), copy_cfg);
+    tasks.push(copy_task.join(':'));
   }
 
   if (tasks.length) {
@@ -155,6 +242,18 @@ function buildPlugin(grunt, _plugin) {
   }
 }
 
+function replaceStringsInCode(_app, _plugin, code) {
+  var map = {
+    ':::PLUGIN_PATH:::': ['/app',_app,_plugin,''].join('/')
+  };
+
+  Object.keys(map).forEach(function (key, replace) {
+    code = code.replace(new RegExp(key, 'g'), replace);
+  });
+
+  return code;
+}
+
 
 module.exports = function (grunt) {
   'use strict';
@@ -163,6 +262,10 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-cssmin');
+  grunt.loadNpmTasks('grunt-angular-templates');
+  grunt.loadNpmTasks('grunt-contrib-clean');
+
+  grunt.config('clean.temp', ['<%= paths.temp %>']);
 
   grunt.registerTask('pluginPre', 'Preprocesses a plugin', _.partial(preProcess, grunt));
   grunt.registerTask('pluginBuild', 'Builds a plugin for deployment', _.partial(buildPlugin, grunt));
@@ -174,6 +277,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('pluginBuildAll', [
     'readPlugins',
-    'pluginBuild:all'
+    'pluginBuild:all',
+    'clean:temp'
   ]);
 };

@@ -78,6 +78,19 @@ module.exports = function (grunt) {
     });
   }
 
+  function pluginClearId(_plugin) {
+    var manifestPath = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json');
+
+    if (grunt.file.exists(manifestPath)) {
+      var manifestdata = grunt.file.readJSON(manifestPath);
+      delete manifestdata._id;
+      grunt.file.write(manifestPath, JSON.stringify(manifestdata, null, 2));
+      grunt.log.oklns('Plugin id cleared');
+    } else {
+      grunt.fail.fatal('Plugin ' + _plugin + ' manifest cannot be found');
+    }
+  }
+
   function onError(err) {
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
@@ -99,7 +112,7 @@ module.exports = function (grunt) {
       return applicationSave(app).then(function () {
         grunt.log.ok('Application registered');
         return done();
-      });
+      }, onError);
     }, onError);
   });
 
@@ -163,5 +176,18 @@ module.exports = function (grunt) {
   ]);
 
   grunt.registerTask('appRegister', ['c8yAppRegister']);
+
+  //Plugin clear id
+  grunt.registerTask('pluginClearId', pluginClearId);
+  grunt.registerTask('_pluginClearIdAll', function () {
+    grunt.config('localPlugins').forEach(function (p) {
+      grunt.task.run('pluginClearId:' + p.contextPath);
+    });
+  });
+  grunt.registerTask('pluginClearIdAll', [
+    'readPlugins',
+    '_pluginClearIdAll'
+  ]);
+
 
 };
