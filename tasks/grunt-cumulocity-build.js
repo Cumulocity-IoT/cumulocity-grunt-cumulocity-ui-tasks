@@ -312,4 +312,10 @@ module.exports = function (grunt) {
     'pluginBuild:all',
     'clean:temp'
   ]);
+
+  grunt.config('copy.pluginindex', {
+    cwd: 'node_modules/grunt-cumulocity-ui-tasks/lib/static/',
+    src: ['index.html'],
+    dest: '<%= paths.build %>'
+  });
 };
