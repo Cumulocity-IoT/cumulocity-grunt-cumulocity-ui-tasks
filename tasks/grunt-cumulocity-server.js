@@ -125,7 +125,7 @@ function setupConnect(grunt) {
 
     if (app && plugin) {
       var map = {
-        ':::PLUGIN_PATH:::': ['/app',app,plugin].join('/')
+        ':::PLUGIN_PATH:::': ['/app',app,plugin,''].join('/')
       };
       return mntProcess('plugins', function (path, text, send) {
         Object.keys(map).forEach(function (k) {
