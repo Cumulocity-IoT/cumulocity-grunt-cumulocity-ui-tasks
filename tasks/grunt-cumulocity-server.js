@@ -157,6 +157,7 @@ function setupConnect(grunt) {
       pluginFiles,
       placeholders,
       bower_components,
+      mount('node_modules/grunt-cumulocity-ui-tasks/lib/static'),
       mount('<%= paths.temp %>'),
       mount('<%= paths.temp %>/plugins'),
       mount('<%= paths.root %>'),
