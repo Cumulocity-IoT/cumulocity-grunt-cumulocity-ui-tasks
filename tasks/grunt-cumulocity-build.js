@@ -1,4 +1,5 @@
-var _ = require('lodash');
+var _ = require('lodash'),
+  request = require('request');
 
 function getPlugin(grunt, _plugin) {
   var plugins = grunt.config('localPlugins');
@@ -285,6 +286,17 @@ function replaceStringTask(grunt, _plugin) {
 
 }
 
+function downloadIndex(grunt) {
+  var input = grunt.template.process('<%= cumulocity.protocol %>://<%= cumulocity.host %>/apps/core/index.html', grunt.config),
+    output = grunt.template.process('<%= paths.temp %>/index.html'),
+    done = this.async();
+
+  request(input, function (err, res, body) {
+    grunt.file.write(output, body);
+    done();
+  });
+}
+
 
 module.exports = function (grunt) {
   'use strict';
@@ -298,9 +310,28 @@ module.exports = function (grunt) {
 
   grunt.config('clean.temp', ['<%= paths.temp %>']);
 
-  grunt.registerTask('pluginPre', 'Preprocesses a plugin', _.partial(preProcess, grunt));
-  grunt.registerTask('pluginBuild', 'Builds a plugin for deployment', _.partial(buildPlugin, grunt));
-  grunt.registerTask('pluginReplaceString', 'Replaces string for plugin path', _.partial(replaceStringTask, grunt));
+  grunt.registerTask('pluginPre',
+    'Preprocesses a plugin',
+    _.partial(preProcess, grunt));
+
+  grunt.registerTask('pluginBuild',
+    'Builds a plugin for deployment',
+    _.partial(buildPlugin, grunt));
+
+  grunt.registerTask('pluginReplaceString',
+    'Replaces string for plugin path',
+    _.partial(replaceStringTask, grunt));
+
+  grunt.registerTask('downloadIndex',
+    'Download index.html from our default endpoint',
+    _.partial(downloadIndex, grunt));
+
+  grunt.config('copy.pluginindex', {
+    expand: true,
+    cwd: '<%= paths.temp %>',
+    src: ['index.html'],
+    dest: '<%= paths.build %>'
+  });
 
   grunt.registerTask('pluginPreAll', [
     'readPlugins',
@@ -310,12 +341,8 @@ module.exports = function (grunt) {
   grunt.registerTask('pluginBuildAll', [
     'readPlugins',
     'pluginBuild:all',
+    'downloadIndex',
+    'copy:pluginindex',
     'clean:temp'
   ]);
-
-  grunt.config('copy.pluginindex', {
-    cwd: 'node_modules/grunt-cumulocity-ui-tasks/lib/static/',
-    src: ['index.html'],
-    dest: '<%= paths.build %>'
-  });
 };
