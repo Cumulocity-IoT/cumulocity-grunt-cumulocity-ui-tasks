@@ -116,6 +116,7 @@ function setupConnect(grunt) {
   }
 
   function mntProcess(dir, transform) {
+    console.log(dir);
     return st({
       root: dir,
       match: /.+\.(js|css|html)/,
@@ -131,8 +132,9 @@ function setupConnect(grunt) {
     if (app && plugin) {
       var map = {
         ':::PLUGIN_PATH:::': ['/apps',app,plugin,''].join('/')
-      };
-      return mntProcess('plugins', function (path, text, send) {
+      },
+        plugin_path = grunt.template.process('<%= paths.plugins %>', grunt.config);
+      return mntProcess(plugin_path, function (path, text, send) {
         Object.keys(map).forEach(function (k) {
           text = text.replace(new RegExp(k, 'g'), map[k]);
         });
