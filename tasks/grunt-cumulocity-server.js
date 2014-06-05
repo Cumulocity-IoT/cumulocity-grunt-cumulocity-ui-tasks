@@ -116,7 +116,6 @@ function setupConnect(grunt) {
   }
 
   function mntProcess(dir, transform) {
-    console.log(dir);
     return st({
       root: dir,
       match: /.+\.(js|css|html)/,
