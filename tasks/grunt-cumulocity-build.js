@@ -288,7 +288,7 @@ function replaceStringTask(grunt, _plugin) {
 
 function downloadIndex(grunt) {
   var input = grunt.template.process('<%= cumulocity.protocol %>://<%= cumulocity.host %>/apps/core/index.html', grunt.config),
-    output = grunt.template.process('<%= paths.temp %>/index.html'),
+    output = grunt.template.process('<%= paths.build %>/index.html'),
     done = this.async();
 
   request(input, function (err, res, body) {
@@ -326,13 +326,6 @@ module.exports = function (grunt) {
     'Download index.html from our default endpoint',
     _.partial(downloadIndex, grunt));
 
-  grunt.config('copy.pluginindex', {
-    expand: true,
-    cwd: '<%= paths.temp %>',
-    src: ['index.html'],
-    dest: '<%= paths.build %>'
-  });
-
   grunt.registerTask('pluginPreAll', [
     'readPlugins',
     'pluginPre:all'
@@ -342,7 +335,6 @@ module.exports = function (grunt) {
     'readPlugins',
     'pluginBuild:all',
     'downloadIndex',
-    'copy:pluginindex',
     'clean:temp'
   ]);
 };

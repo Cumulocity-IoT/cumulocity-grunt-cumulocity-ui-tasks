@@ -184,6 +184,7 @@ module.exports = function (grunt) {
       grunt.task.run('pluginClearId:' + p.contextPath);
     });
   });
+
   grunt.registerTask('pluginClearIdAll', [
     'readPlugins',
     '_pluginClearIdAll'

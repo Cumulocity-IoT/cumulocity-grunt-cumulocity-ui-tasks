@@ -60,8 +60,7 @@ function setupConnect(grunt) {
         'application',
         'tenant',
         'cep',
-        'apps',
-        'index.html'
+        'apps'
       ];
 
     req.url = req.orig_url;
@@ -70,12 +69,6 @@ function setupConnect(grunt) {
     if (proxied && !req.pluginContextPath) {
 
       delete req.headers.host;
-
-      if (req.url.match('index.html')) {
-        req.url = '/apps/core/index.html';
-        delete req._parsedUrl;
-      }
-
 
       if (req.url.match('manifest')) {
         var _write = res.write,
@@ -157,10 +150,9 @@ function setupConnect(grunt) {
       pluginFiles,
       placeholders,
       bower_components,
-      mount('node_modules/grunt-cumulocity-ui-tasks/lib/static'),
       mount('<%= paths.temp %>'),
       mount('<%= paths.temp %>/plugins'),
-      mount('<%= paths.root %>'),
+      mount(_root),
       mount('<%= paths.plugins %>'),
       proxyServerRequest
     ];
@@ -175,13 +167,13 @@ function setupConnect(grunt) {
     },
     plugin: {
       options: {
-        middleware: _.partial(connectMidlewares, 'tasks/lib/static')
+        middleware: _.partial(connectMidlewares, 'node_modules/grunt-cumulocity-ui-tasks/lib/static')
       }
     },
     core: {
       options: {
         port: 9000,
-        middleware: _.partial(connectMidlewares, '')
+        middleware: _.partial(connectMidlewares, '<%= paths.root %>')
       }
     }
   });
