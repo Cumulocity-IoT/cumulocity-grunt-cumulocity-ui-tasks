@@ -288,7 +288,7 @@ function replaceStringTask(grunt, _plugin) {
 
 function downloadIndex(grunt) {
   var input = grunt.template.process('<%= cumulocity.protocol %>://<%= cumulocity.host %>/apps/core/index.html', grunt.config),
-    output = grunt.template.process('<%= paths.temp %>/index.html'),
+    output = grunt.template.process('<%= paths.build %>/index.html'),
     done = this.async();
 
   request(input, function (err, res, body) {
