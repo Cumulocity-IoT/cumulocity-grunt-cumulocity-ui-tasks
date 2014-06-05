@@ -326,13 +326,6 @@ module.exports = function (grunt) {
     'Download index.html from our default endpoint',
     _.partial(downloadIndex, grunt));
 
-  grunt.config('copy.pluginindex', {
-    expand: true,
-    cwd: '<%= paths.temp %>',
-    src: ['index.html'],
-    dest: '<%= paths.build %>'
-  });
-
   grunt.registerTask('pluginPreAll', [
     'readPlugins',
     'pluginPre:all'
@@ -342,7 +335,6 @@ module.exports = function (grunt) {
     'readPlugins',
     'pluginBuild:all',
     'downloadIndex',
-    'copy:pluginindex',
     'clean:temp'
   ]);
 };
