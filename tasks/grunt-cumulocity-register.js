@@ -1,5 +1,6 @@
 var Q = require('q'),
   inquirer = require('inquirer'),
+  _ = require('lodash'),
   cumulocityServer = require('../lib/cumulocityServer');
 
 module.exports = function (grunt) {
@@ -7,7 +8,7 @@ module.exports = function (grunt) {
 
   function getCredentials() {
     var defer = Q.defer(),
-      userConfig = grunt.file.readJSON('.cumulocity');
+      userConfig = grunt.file.exists('.cumulocity') ? grunt.file.readJSON('.cumulocity') : {};
 
     if (userConfig.tenant && userConfig.user) {
       defer.resolve(userConfig);
@@ -51,13 +52,8 @@ module.exports = function (grunt) {
   }
 
   function applicationSave(app) {
-    return cumulocityServer.saveApplication(app).then(function (_app) {
-      if (!app._id && _app.id) {
-        app._id = _app.id;
-      }
-      grunt.file.write('cumulocity.json', JSON.stringify(app, null, 2));
-      return app;
-    });
+    return cumulocityServer.findApplication(app)
+      .then(cumulocityServer.saveApplication);
   }
 
   function pluginSave(plugin) {
@@ -67,15 +63,11 @@ module.exports = function (grunt) {
         '/cumulocity.json',
       ].join(''), grunt.config);
 
-    return cumulocityServer.savePlugin(plugin).then(function (_plugin) {
-      if (!plugin._id) {
-        plugin._id = _plugin.id;
-        delete plugin.directoryName;
-        delete plugin._app_id;
-        grunt.file.write(pManifest, JSON.stringify(plugin, null, 2));
-      }
-      return plugin;
-    });
+    return cumulocityServer.findPlugin(plugin)
+      .then(cumulocityServer.savePlugin)
+      .then(function (_plugin) {
+        return plugin;
+      });
   }
 
   function pluginClearId(_plugin) {
@@ -92,6 +84,7 @@ module.exports = function (grunt) {
   }
 
   function onError(err) {
+    console.log(arguments);
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
 
@@ -123,7 +116,7 @@ module.exports = function (grunt) {
     }
 
     var appConfig = 'cumulocity.json',
-      pluginConfig = grunt.template.process('<%=paths.plugins%>/' + _plugin + '/cumulocity.json', grunt.config),
+      pluginConfig = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json', grunt.config),
       app,
       plugin,
       done = this.async();
@@ -141,17 +134,30 @@ module.exports = function (grunt) {
       grunt.fail.fatal('Plugin ' + _plugin + ' file not found');
     }
 
-    checkCredentials().then(function () {
-      grunt.log.writeln('Credentials registered');
-      grunt.log.writeln('Registering plugin.');
+    return checkCredentials()
+      .then(function () {
+        var appPromise = grunt.config('appPromise');
+        if (!appPromise) {
+          appPromise = cumulocityServer.findApplication(app);
+          grunt.config('appPromise', appPromise);
+        }
+        return appPromise;
+      })
+      .then(function (app) {
 
-      plugin._app_id = app._id;
-
-      return pluginSave(plugin).then(function () {
+        if (!app.id) {
+          grunt.fail.fatal('Application must be registered');
+        }
+        plugin.app_id = app.id;
+        plugin.rootContextPath = app.contextPath + '/' + plugin.directoryName;
+        return plugin;
+      })
+      .then(pluginSave)
+      .then(function () {
         grunt.log.ok('Plugin ' + _plugin + ' successfully registered');
         done();
-      }, onError);
-    }, onError);
+      })
+      .fail(onError);
 
   });
 
@@ -159,7 +165,6 @@ module.exports = function (grunt) {
     if (!_plugin) {
       grunt.fail.fatal('You must supply a plugin name');
     }
-    grunt.task.run('c8yAppRegister');
     grunt.task.run('c8yPluginRegister:' + _plugin);
   });
 

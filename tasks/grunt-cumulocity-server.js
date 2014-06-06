@@ -5,19 +5,31 @@ var url = require('url'),
   httpProxy = require('http-proxy');
 
 function setupConnect(grunt) {
+  var target = [
+    grunt.config('cumulocity.protocol'),
+    '://',
+    grunt.config('cumulocity.host')
+  ].join('');
 
-  var proxy = httpProxy.createServer({target: grunt.config('cumulocity.protocol') + '://' + grunt.config('cumulocity.host')});
+  var proxy = httpProxy.createServer({
+    target: target
+  });
+
+  function saveOriginal(req, res, next) {
+    req.orig_url = req.url;
+    next();
+  }
 
   function findApp(req, res, next) {
     var _path = url.parse(req.url).pathname,
       pathMatch = _path.match(/^\/apps\/(\w+)\/?/),
       appPath = pathMatch && pathMatch[1];
 
-    req.orig_url = req.url;
-
     if (appPath) {
       req.appContextPath = appPath;
+      //Make the app go the root folder
       req.url = req.url.replace(new RegExp('\/apps\/' + appPath + '\/?'), '/');
+      //Load index file by default
       if (!req.url || req.url === '/') {
         req.url = '/index.html';
       }
@@ -36,16 +48,39 @@ function setupConnect(grunt) {
   function parseManifestData(data) {
     var app = grunt.config('localApplication'),
       plugins = grunt.config('localPlugins'),
-      _data = JSON.parse(data);
+      serverManifest = JSON.parse(data);
 
-    _data.imports.forEach(function (i) {
-      var localP = _.find(plugins, function (p) { return Number(p.manifest._id) === Number(i.id); });
+    //Replace plugins with local version of manifests
+    serverManifest.imports.forEach(function (i) {
+      var localP = _.find(plugins, function (p) {
+        return i.contextPath === app.contextPath + '/' + p.contextPath;
+      });
+
       if (localP) {
         _.merge(i, localP.manifest);
       }
     });
 
-    return JSON.stringify(_data);
+    //Check if we have local imports not on the server
+    app.imports.forEach(function (i) {
+      var included = _.find(serverManifest.imports, function (p) {
+        return i === p.contextPath;
+      });
+
+      // let's add it on the fly, but only if it is a plugin contained in this app
+      if (!included && i.match(app.contextPath)) {
+        var localPlugin = _.find(plugins, function (p) {
+          return i === app.contextPath + '/' + p.contextPath;
+        });
+
+        if (localPlugin) {
+          serverManifest.imports.push(localPlugin.manifest);
+        }
+      }
+
+    });
+
+    return JSON.stringify(serverManifest);
   }
 
   function proxyServerRequest(req, res, next) {
@@ -63,8 +98,13 @@ function setupConnect(grunt) {
         'apps'
       ];
 
+    //we change the url in many steps before, revert to original request
     req.url = req.orig_url;
-    var proxied = _.any(toProxy, function (a) { return req.url.match(new RegExp('^/' + a)); });
+
+    //Check if we should proxy this
+    var proxied = _.any(toProxy, function (a) {
+      return req.url.match(new RegExp('^/' + a));
+    });
 
     if (proxied && !req.pluginContextPath) {
 
@@ -147,6 +187,7 @@ function setupConnect(grunt) {
   function connectMidlewares(_root, connect, options) {
     var mount = _.partial(mnt, connect);
     return [
+      saveOriginal,
       findApp,
       pluginFiles,
       placeholders,
