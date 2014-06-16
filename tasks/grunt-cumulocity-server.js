@@ -22,7 +22,7 @@ function setupConnect(grunt) {
 
   function findApp(req, res, next) {
     var _path = url.parse(req.url).pathname,
-      pathMatch = _path.match(/^\/apps\/(\w+)\/?/),
+      pathMatch = _path.match(/^\/apps\/([^\/]+)\/?/),
       appPath = pathMatch && pathMatch[1];
 
     if (appPath) {
