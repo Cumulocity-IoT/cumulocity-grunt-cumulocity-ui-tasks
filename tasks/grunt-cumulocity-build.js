@@ -55,7 +55,7 @@ function preProcess(grunt, _plugin) {
     });
     grunt.config('watch.plugin_' + _plugin, {
       files: [pluginPath + '**/*.less', pluginPath + '*.less'],
-      tasks: [task]
+      tasks: ['pluginPre:' + _plugin]
     });
     tasks.push('less:plugin_' + _plugin);
   }
