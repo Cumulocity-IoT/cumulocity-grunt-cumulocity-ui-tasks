@@ -1,42 +1,79 @@
 var url = require('url'),
   path = require('path'),
+  fs = require('fs'),
   _ = require('lodash'),
   st = require('connect-static-transform'),
   httpProxy = require('http-proxy');
 
-function setupConnect(grunt) {
-  var target = [
+module.exports = function (grunt) {
+  'use strict';
+
+  var TARGET = [
     grunt.config('cumulocity.protocol'),
     '://',
     grunt.config('cumulocity.host')
-  ].join('');
-
-  var proxy = httpProxy.createServer({
-    target: target
+  ].join(''),
+    proxy = httpProxy.createServer({
+    target: TARGET
   });
+
+  function isCorePresent() {
+    return !!getApp('core');
+  }
+
+  function getApp(contextpath) {
+    var apps = grunt.config('localapps');
+    return _.find(apps, function (a) {
+      return a.contextPath === contextpath;
+    });
+  }
+
+  function isIndex(req) {
+    var app = req.localapp,
+      plugin = req.localplugin,
+      regex = new RegExp('/apps/' + app.contextPath + '/'),
+      extractUrl = req.url.replace(regex, '');
+
+    return !extractUrl || extractUrl === 'index.html';
+  }
+
 
   function saveOriginal(req, res, next) {
     req.orig_url = req.url;
     next();
   }
 
-  function findApp(req, res, next) {
+  function findAppInContext(req, res, next) {
     var _path = url.parse(req.url).pathname,
       pathMatch = _path.match(/^\/apps\/([^\/]+)\/?/),
-      appPath = pathMatch && pathMatch[1];
+      appContextPath = pathMatch && pathMatch[1],
+      apps = grunt.config('localapps');
 
-    if (appPath) {
-      req.appContextPath = appPath;
-      //Make the app go the root folder
-      req.url = req.url.replace(new RegExp('\/apps\/' + appPath + '\/?'), '/');
-      //Load index file by default
-      if (!req.url || req.url === '/') {
-        req.url = '/index.html';
-      }
+    if (appContextPath) {
+      req.localapp = _.find(apps, function (app) {
+        return app.contextPath === appContextPath;
+      });
+      return findPlugin(req, res, next);
     }
 
     return next();
   }
+
+  function findPlugin(req, res, next) {
+    var _path = url.parse(req.url).pathname,
+      pathMatch = _path.match(/^\/apps\/([^\/]+\/[^\/]+)\/?/),
+      pluginContextPath = pathMatch && pathMatch[1],
+      plugins = grunt.config('localplugins');
+
+    if (pluginContextPath) {
+      req.localplugin = _.find(plugins, function (plugin) {
+        return pluginContextPath === plugin.__rootContextPath;
+      });
+    }
+
+    return next();
+  }
+
 
   function bower_components(req, res, next) {
     if (req.url.match('bower_components')) {
@@ -46,38 +83,18 @@ function setupConnect(grunt) {
   }
 
   function parseManifestData(data) {
-    var app = grunt.config('localApplication'),
-      plugins = grunt.config('localPlugins'),
+    var plugins = grunt.config('localplugins'),
       serverManifest = JSON.parse(data);
 
     //Replace plugins with local version of manifests
     serverManifest.imports.forEach(function (i) {
       var localP = _.find(plugins, function (p) {
-        return i.contextPath === app.contextPath + '/' + p.contextPath;
+        return p.__rootContextPath === i.rootContextPath;
       });
 
       if (localP) {
-        _.merge(i, localP.manifest);
+        _.merge(i, localP);
       }
-    });
-
-    //Check if we have local imports not on the server
-    app.imports.forEach(function (i) {
-      var included = _.find(serverManifest.imports, function (p) {
-        return i === p.contextPath;
-      });
-
-      // let's add it on the fly, but only if it is a plugin contained in this app
-      if (!included && i.match(app.contextPath)) {
-        var localPlugin = _.find(plugins, function (p) {
-          return i === app.contextPath + '/' + p.contextPath;
-        });
-
-        if (localPlugin) {
-          serverManifest.imports.push(localPlugin.manifest);
-        }
-      }
-
     });
 
     return JSON.stringify(serverManifest);
@@ -106,7 +123,7 @@ function setupConnect(grunt) {
       return req.url.match(new RegExp('^/' + a));
     });
 
-    if (proxied && !req.pluginContextPath) {
+    if (proxied) {
 
       delete req.headers.host;
 
@@ -130,24 +147,73 @@ function setupConnect(grunt) {
     }
   }
 
-  function pluginFiles(req, res, next) {
-    var plugins = grunt.config.get('localPlugins');
+  function staticLocal(connect, req, res, next, isTemp) {
+    var staticMiddleware;
 
-    if (req.appContextPath) {
-      var ctx = req.appContextPath,
-        _path = url.parse(req.url).pathname,
-        pluginMatch = _path.replace('/apps/' + ctx + '/', '').match(/([^\/]+)/),
-        plugin = pluginMatch && pluginMatch[1],
-        existing = _.find(plugins, function (p) {
-          return p.contextPath === plugin;
-        });
+    if (req.localapp) {
 
-      if (plugin && existing) {
-        req.pluginContextPath = plugin;
+      //Server local index
+      if (isCorePresent() && isIndex(req)) {
+        var coreApp = getApp('core');
+        req.url = '/index.html';
+        staticMiddleware = mnt(connect, coreApp.__dirnameTemp);
+        return staticMiddleware(req, res, next);
       }
+
+      //Serve bower components
+      if (req.url.match('bower_components')) {
+        req.url = req.url.replace(/.*bower_components/, '');
+        staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components');
+        return staticMiddleware(req, res, next);
+      }
+
+      var dirnameVal = '__dirname' + (isTemp ? 'Temp' : '');
+      staticMiddleware = mnt(connect, req.localapp[dirnameVal]);
+
+      req.url = req.orig_url.replace('/apps/' + req.localapp.contextPath, '');
+      if (req.localplugin) {
+         var file = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, ''),
+            _path = path.resolve(req.localplugin[dirnameVal] + '/' + file);
+
+        if (req.url.match(/(js|html|css)$/) && fs.existsSync(_path)) {
+
+         var stream = fs.createReadStream(_path),
+            res_write = res.write,
+            res_end = res.end,
+            out = '';
+
+          stream.pipe(res);
+
+          res.write = function (data) {
+            out = out + data.toString();
+            out = placeholders(req.localplugin, out);
+            res_write.call(res, out);
+          };
+
+          res.end = function (data) {
+            var _out = '' + (data ? data.toString() : '');
+            _out = placeholders(req.localplugin, _out);
+            res_end.call(res, _out);
+          };
+          return;
+
+        } else {
+          staticMiddleware = mnt(connect, req.localplugin[dirnameVal]);
+          req.url = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, '');
+        }
+
+      }
+
+      return staticMiddleware(req, res, function () {
+        if (!res.body && isTemp) {
+          return staticLocal(connect, req, res, next, false);
+        } else {
+          next();
+        }
+      });
     }
 
-    next();
+    return next();
   }
 
   function mnt(connect, dir) {
@@ -155,118 +221,53 @@ function setupConnect(grunt) {
     return connect.static(path.resolve(dir));
   }
 
-  function mntProcess(dir, transform) {
-    return st({
-      root: dir,
-      match: /.+\.(js|css|html)/,
-      transform: transform
+  function placeholders(plugin, text) {
+    var map = {
+      ':::PLUGIN_PATH:::': ['/apps', plugin.__rootContextPath, ''].join('/')
+    };
+    Object.keys(map).forEach(function (k) {
+      text = text.replace(new RegExp(k, 'g'), map[k]);
     });
+    return text;
   }
 
-  function placeholders(req, res, next) {
-    var app = req.appContextPath,
-      plugin = req.pluginContextPath;
-
-
-    if (app && plugin) {
-      var map = {
-        ':::PLUGIN_PATH:::': ['/apps',app,plugin,''].join('/')
-      },
-        plugin_path = grunt.template.process('<%= paths.plugins %>', grunt.config);
-      return mntProcess(plugin_path, function (path, text, send) {
-        Object.keys(map).forEach(function (k) {
-          text = text.replace(new RegExp(k, 'g'), map[k]);
-        });
-        send(text);
-      })(req, res, next);
-    }
-
+  function debug(req, res, next) {
+    console.log(req.localapp, req.locaplugin);
     next();
   }
 
-  function connectMidlewares(_root, connect, options) {
+  function connectMidlewares(connect, options) {
     var mount = _.partial(mnt, connect);
     return [
       saveOriginal,
-      findApp,
-      pluginFiles,
-      placeholders,
-      bower_components,
-      mount('<%= paths.temp %>'),
-      mount('<%= paths.temp %>/plugins'),
-      mount(_root),
-      mount('<%= paths.plugins %>'),
+      findAppInContext,
+      _.partialRight(_.partial(staticLocal, connect), true),
       proxyServerRequest
     ];
   }
 
+
+  var port = grunt.option('localPort') || grunt.config('localPort') || 8000;
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.config('connect', {
     options: {
-      port: 8000,
+      port: port,
       hostname: '0.0.0.0',
-      livereload: true
     },
-    plugin: {
+    server: {
       options: {
-        middleware: _.partial(connectMidlewares, 'node_modules/grunt-cumulocity-ui-tasks/lib/static')
-      }
-    },
-    core: {
-      options: {
-        port: 9000,
-        middleware: _.partial(connectMidlewares, '<%= paths.root %>')
+        middleware: connectMidlewares
       }
     }
   });
-}
 
-function readPlugins(grunt) {
-  var pluginCwd = grunt.template.process('<%= paths.plugins %>', grunt.config),
-    plugins = grunt.file.expand({cwd: pluginCwd}, '**/cumulocity.json')
-    .map(function (_path) {
-      return {
-        contextPath: _path.replace('/cumulocity.json', ''),
-        manifest: grunt.file.readJSON(pluginCwd + '/' + _path)
-      };
-    });
 
-  grunt.log.subhead(plugins.length  + ' plugins detected');
-  grunt.log.oklns(_.pluck(plugins, 'contextPath').join(' , '));
-  grunt.config('localPlugins', plugins);
-}
-
-function readApplication(grunt) {
-  var app = grunt.file.readJSON('cumulocity.json');
-  grunt.log.subhead('Application /apps/' + app.contextPath);
-  grunt.log.oklns(app.name);
-  grunt.config('localApplication', app);
-}
-
-function setupWatch(grunt) {
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.config('watch', {
-    options: {
-      livereload: true
-    },
-    // grunt: {
-    //   files: ['Gruntfile.js', 'tasks/*.js', 'tasks/**/*.js'],
-    //   tasks: ['connect:server']
-    // },
     manifests: {
       files: ['cumulocity.json', '**/cumulocity.json'],
-      tasks: ['readApplication', 'readPlugins']
+      tasks: ['readManifests']
     }
   });
-}
-
-module.exports = function (grunt) {
-  'use strict';
-
-  grunt.registerTask('readPlugins', _.partial(readPlugins, grunt));
-  grunt.registerTask('readApplication', _.partial(readApplication, grunt));
-
-  setupConnect(grunt);
-  setupWatch(grunt);
 
 };
