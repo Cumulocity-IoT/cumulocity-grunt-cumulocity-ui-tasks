@@ -6,6 +6,11 @@ var Q = require('q'),
 module.exports = function (grunt) {
   'use strict';
 
+  function getCurrentPlugins() {
+    var plugins = grunt.config('localplugins') || [];
+    return _.filter(plugins, '__isCurrent');
+  }
+
   function getCredentials() {
     var defer = Q.defer(),
       userConfig = grunt.file.exists('.cumulocity') ? grunt.file.readJSON('.cumulocity') : {};
@@ -170,30 +175,16 @@ module.exports = function (grunt) {
 
   grunt.registerTask('_pluginRegisterAll', function () {
     grunt.task.run('c8yAppRegister');
-    grunt.config('localPlugins').forEach(function (p) {
+    getCurrentPlugins().forEach(function (p) {
       grunt.task.run('c8yPluginRegister:' + p.contextPath);
     });
   });
 
   grunt.registerTask('pluginRegisterAll', [
-    'readPlugins',
+    'readManifests',
     '_pluginRegisterAll'
   ]);
 
   grunt.registerTask('appRegister', ['c8yAppRegister']);
-
-  //Plugin clear id
-  grunt.registerTask('pluginClearId', pluginClearId);
-  grunt.registerTask('_pluginClearIdAll', function () {
-    grunt.config('localPlugins').forEach(function (p) {
-      grunt.task.run('pluginClearId:' + p.contextPath);
-    });
-  });
-
-  grunt.registerTask('pluginClearIdAll', [
-    'readPlugins',
-    '_pluginClearIdAll'
-  ]);
-
 
 };
