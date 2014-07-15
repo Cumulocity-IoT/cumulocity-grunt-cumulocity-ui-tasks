@@ -12,7 +12,7 @@ module.exports = function (grunt) {
     return manifestPaths.map(function (_path) {
       var manifest = grunt.file.readJSON(_path),
         dirname = manifest.__dirname = path.dirname(_path),
-        dirnameSplit = dirname.split(path.sep),
+        dirnameSplit = dirname.split('/'),
         contextPath = dirnameSplit.pop();
 
       manifest.__dirnameTemp = appManifest.__dirnameTemp + '/plugins/' + contextPath;
