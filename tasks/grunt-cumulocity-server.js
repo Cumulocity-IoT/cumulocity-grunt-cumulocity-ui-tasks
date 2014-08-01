@@ -34,7 +34,7 @@ module.exports = function (grunt) {
       regex = new RegExp('/apps/' + app.contextPath + '/'),
       extractUrl = req.url.replace(regex, '');
 
-    return !extractUrl || extractUrl === 'index.html';
+    return !extractUrl || extractUrl.match(/^index.html/);
   }
 
 
