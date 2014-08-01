@@ -93,15 +93,33 @@ module.exports = function (grunt) {
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
 
-  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function () {
+  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (option, branch) {
     var appConfig = 'cumulocity.json',
-      done = this.async();
+      done = this.async(),
+      app;
 
     if (grunt.file.exists(appConfig)) {
-      var app = grunt.file.readJSON(appConfig);
+      app = grunt.file.readJSON(appConfig);
     } else {
       grunt.fail.fatal('Application cumulocity.json file not found.');
+      return;
     }
+
+    if (option === 'noImports') {
+      app.imports = [];
+    }
+
+    if (option === 'branch' && branch) {
+      var url = app.resourcesUrl,
+        inHouse = url.match('bitbucket.org/m2m/');
+
+      if (inHouse) {
+        url = url.replace(/raw\/[^\/]+/, 'raw/' + branch);
+        app.resourcesUrl = url;
+      }
+    }
+
+    console.log(option, branch);
 
     checkCredentials().then(function () {
       grunt.log.writeln('Credentials registered');
@@ -174,17 +192,21 @@ module.exports = function (grunt) {
   });
 
   grunt.registerTask('_pluginRegisterAll', function () {
-    grunt.task.run('c8yAppRegister');
-    getCurrentPlugins().forEach(function (p) {
+    // grunt.task.run('c8yAppRegister');
+    var plugins = getCurrentPlugins();
+    plugins.sort(function (a, b) {
+      var alength = (a.imports && a.imports.length) || 0;
+      var blength = (b.imports && b.imports.length) || 0;
+      return alength - blength;
+    });
+
+    console.log(plugins);
+    console.log(plugins.map(function (p) {return p.imports && p.imports.length;}));
+    plugins.forEach(function (p) {
       grunt.task.run('c8yPluginRegister:' + p.contextPath);
     });
   });
 
-  grunt.registerTask('pluginRegisterAll', [
-    'readManifests',
-    '_pluginRegisterAll'
-  ]);
-
-  grunt.registerTask('appRegister', ['c8yAppRegister']);
+  grunt.renameTask('c8yAppRegister', 'appRegister');
 
 };
