@@ -192,16 +192,23 @@ module.exports = function (grunt) {
   grunt.registerTask('_pluginRegisterAll', function () {
     // grunt.task.run('c8yAppRegister');
     var plugins = getCurrentPlugins();
+
     plugins.sort(function (a, b) {
       var alength = (a.imports && a.imports.length) || 0;
       var blength = (b.imports && b.imports.length) || 0;
       return alength - blength;
     });
 
+
     plugins.forEach(function (p) {
       grunt.task.run('c8yPluginRegister:' + p.contextPath);
     });
   });
+
+  grunt.registerTask('pluginRegisterAll', [
+    'readManifests',
+    '_pluginRegisterAll'
+  ]);
 
   grunt.renameTask('c8yAppRegister', 'appRegister');
 

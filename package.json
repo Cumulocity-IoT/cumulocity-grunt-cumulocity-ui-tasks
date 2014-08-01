@@ -1,6 +1,6 @@
 {
   "name": "grunt-cumulocity-ui-tasks",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Grunt tasks for cumulocity UI platform",
   "author": "Cumulocity, GmbH",
   "license": "MIT",
