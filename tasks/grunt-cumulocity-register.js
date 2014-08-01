@@ -119,8 +119,6 @@ module.exports = function (grunt) {
       }
     }
 
-    console.log(option, branch);
-
     checkCredentials().then(function () {
       grunt.log.writeln('Credentials registered');
       grunt.log.writeln('Registering application.');
@@ -200,8 +198,6 @@ module.exports = function (grunt) {
       return alength - blength;
     });
 
-    console.log(plugins);
-    console.log(plugins.map(function (p) {return p.imports && p.imports.length;}));
     plugins.forEach(function (p) {
       grunt.task.run('c8yPluginRegister:' + p.contextPath);
     });
