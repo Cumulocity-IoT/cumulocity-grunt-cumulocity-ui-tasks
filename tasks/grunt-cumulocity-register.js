@@ -11,9 +11,23 @@ module.exports = function (grunt) {
     return _.filter(plugins, '__isCurrent');
   }
 
+  function getUserConfig() {
+    var output  = {};
+    if (process.env.C8Y_TENANT && process.env.C8Y_USER) {
+      output = {
+        tenant : process.env.C8Y_TENANT,
+        user: process.env.C8Y_USER
+      };
+    } else if (grunt.file.exists('.cumulocity')) {
+      output = grunt.file.readJSON('.cumulocity');
+    }
+
+    return output;
+  }
+
   function getCredentials() {
     var defer = Q.defer(),
-      userConfig = grunt.file.exists('.cumulocity') ? grunt.file.readJSON('.cumulocity') : {};
+      userConfig = getUserConfig();
 
     if (userConfig.tenant && userConfig.user) {
       defer.resolve(userConfig);
