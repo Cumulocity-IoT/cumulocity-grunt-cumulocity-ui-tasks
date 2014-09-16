@@ -11,9 +11,23 @@ module.exports = function (grunt) {
     return _.filter(plugins, '__isCurrent');
   }
 
+  function getUserConfig() {
+    var output  = {};
+    if (process.env.C8Y_TENANT && process.env.C8Y_USER) {
+      output = {
+        tenant : process.env.C8Y_TENANT,
+        user: process.env.C8Y_USER
+      };
+    } else if (grunt.file.exists('.cumulocity')) {
+      output = grunt.file.readJSON('.cumulocity');
+    }
+
+    return output;
+  }
+
   function getCredentials() {
     var defer = Q.defer(),
-      userConfig = grunt.file.exists('.cumulocity') ? grunt.file.readJSON('.cumulocity') : {};
+      userConfig = getUserConfig();
 
     if (userConfig.tenant && userConfig.user) {
       defer.resolve(userConfig);
@@ -119,8 +133,6 @@ module.exports = function (grunt) {
       }
     }
 
-    console.log(option, branch);
-
     checkCredentials().then(function () {
       grunt.log.writeln('Credentials registered');
       grunt.log.writeln('Registering application.');
@@ -194,18 +206,23 @@ module.exports = function (grunt) {
   grunt.registerTask('_pluginRegisterAll', function () {
     // grunt.task.run('c8yAppRegister');
     var plugins = getCurrentPlugins();
+
     plugins.sort(function (a, b) {
       var alength = (a.imports && a.imports.length) || 0;
       var blength = (b.imports && b.imports.length) || 0;
       return alength - blength;
     });
 
-    console.log(plugins);
-    console.log(plugins.map(function (p) {return p.imports && p.imports.length;}));
+
     plugins.forEach(function (p) {
       grunt.task.run('c8yPluginRegister:' + p.contextPath);
     });
   });
+
+  grunt.registerTask('pluginRegisterAll', [
+    'readManifests',
+    '_pluginRegisterAll'
+  ]);
 
   grunt.renameTask('c8yAppRegister', 'appRegister');
 

@@ -11,7 +11,8 @@ module.exports = function (grunt) {
   var TARGET = [
     grunt.config('cumulocity.protocol'),
     '://',
-    grunt.config('cumulocity.host')
+    grunt.config('cumulocity.host'),
+    grunt.config('cumulocity.port') ? ':' + grunt.config('cumulocity.port') : ''
   ].join(''),
     proxy = httpProxy.createServer({
     target: TARGET
@@ -31,8 +32,8 @@ module.exports = function (grunt) {
   function isIndex(req) {
     var app = req.localapp,
       plugin = req.localplugin,
-      regex = new RegExp('/apps/' + app.contextPath + '/'),
-      extractUrl = req.url.replace(regex, '');
+      regex = app && new RegExp('/apps/' + app.contextPath + '/'),
+      extractUrl = regex ? req.url.replace(regex, '') : 'none';
 
     return !extractUrl || extractUrl.match(/^index.html/);
   }
@@ -124,6 +125,10 @@ module.exports = function (grunt) {
     });
 
     if (proxied) {
+
+      if (isIndex(req)) {
+        req.url = '/apps/core/index.html';
+      }
 
       delete req.headers.host;
 
