@@ -64,7 +64,14 @@ module.exports = function (grunt) {
   function checkCredentials() {
     return getCredentials().then(function (credentials) {
       return getPassword().then(function (password) {
-        cumulocityServer.init(credentials.tenant, credentials.user, password, grunt.config('cumulocity.host'), grunt.config('cumulocity.protocol'));
+        cumulocityServer.init(
+          credentials.tenant,
+          credentials.user,
+          password,
+          grunt.config('cumulocity.host'),
+          grunt.config('cumulocity.protocol'),
+          grunt.config('cumulocity.port')
+        );
         return true;
       });
     });
