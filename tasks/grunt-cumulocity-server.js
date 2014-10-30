@@ -157,6 +157,10 @@ module.exports = function (grunt) {
 
     if (req.localapp) {
 
+      if (req.url.match(/css$/)) {
+        res.setHeader('Content-Type', 'text/css');
+      }
+
       //Server local index
       if (isCorePresent() && isIndex(req)) {
         var coreApp = getApp('core');
