@@ -349,4 +349,10 @@ module.exports = function (grunt) {
     'downloadIndex',
     'clean:temp'
   ]);
+
+  grunt.registerTask('pluginBuildAllNoIndex', [
+    'readManifests',
+    'pluginBuild:all',
+    'clean:temp'
+  ]);
 };

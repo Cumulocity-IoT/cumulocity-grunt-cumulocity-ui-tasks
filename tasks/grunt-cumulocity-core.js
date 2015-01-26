@@ -86,11 +86,54 @@ function task(grunt) {
             return _.union(this.jsvendor(), this.jscore(), this.jsui());
           },
 
+          jsForHtml: function () {
+            return _.map(this.js(), function (f) {
+              return f.replace(APP_FOLDER, '/apps/core/');
+            });
+          },
+
+          jsForHtmlBuild: function () {
+            var JSDELIVR = '//cdn.jsdelivr.net/g/',
+              jsPath = _.chain(this.raw.jsfiles.vendor)
+                .filter('jsdelivr')
+                .pluck('jsdelivr')
+                .groupBy('project')
+                .reduce(function (path, files, project) {
+                  if (path !== JSDELIVR) {
+                    path = path + ',';
+                  }
+                  path = path + project + '(' + _.pluck(files, 'file').join('+') + ')';
+                  return path;
+                }, JSDELIVR)
+                .value();
+
+            return [jsPath, '/apps/core/scripts/main.js'];
+          },
+
+          cssForHtml: function () {
+            return _.map(this.css(), function (f) {
+              if (f.match(/^style/)) {
+                return '/apps/core/' + f;
+              }
+              return f.replace(APP_FOLDER, '/apps/core/');
+            });
+          },
+
+          cssForHtmlBuild: function () {
+            var cssVendor = _.chain(this.raw.cssfiles.vendor)
+              .filter('remote')
+              .pluck('remote')
+              .value();
+            return _.union(cssVendor, ['/apps/core/style/main.css']);
+          },
+
           jstest: function () {
             return _.union(this.jsvendor(), this.jscore(), this.jsui(),
                 filterType(this.raw.jsfiles.vendortest, 'local'),
                 filterType(this.raw.jsfiles.test, 'local'));
           }
+
+
         });
 
         config._jstest = config.jstest();
