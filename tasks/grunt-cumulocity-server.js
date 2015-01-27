@@ -246,7 +246,6 @@ module.exports = function (grunt) {
   }
 
   function connectMidlewares(connect, options) {
-    var mount = _.partial(mnt, connect);
     return [
       saveOriginal,
       findAppInContext,
