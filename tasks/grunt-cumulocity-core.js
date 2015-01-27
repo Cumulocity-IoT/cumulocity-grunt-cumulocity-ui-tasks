@@ -124,7 +124,7 @@ function task(grunt) {
               .filter('remote')
               .pluck('remote')
               .value();
-            return _.union(cssVendor, ['/apps/core/style/main.css']);
+            return _.union(cssVendor, ['/apps/core/styles/main.css']);
           },
 
           jstest: function () {
