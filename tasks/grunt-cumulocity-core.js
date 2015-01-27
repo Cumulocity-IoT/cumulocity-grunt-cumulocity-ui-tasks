@@ -87,9 +87,9 @@ function task(grunt) {
           },
 
           jsForHtml: function () {
-            return _.map(this.js(), function (f) {
+            return _.union(_.map(this.js(), function (f) {
               return f.replace(APP_FOLDER, '/apps/core/');
-            });
+            }), ['/apps/core/scripts/start.js']);
           },
 
           jsForHtmlBuild: function () {
@@ -132,7 +132,6 @@ function task(grunt) {
                 filterType(this.raw.jsfiles.vendortest, 'local'),
                 filterType(this.raw.jsfiles.test, 'local'));
           }
-
 
         });
 
