@@ -115,7 +115,7 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (option, branch) {
-    var appConfig = 'cumulocity.json',
+    var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
       done = this.async(),
       app;
 
@@ -157,7 +157,7 @@ module.exports = function (grunt) {
       grunt.fail.fatal('You must supply a plugin name');
     }
 
-    var appConfig = 'cumulocity.json',
+    var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
       pluginConfig = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json', grunt.config),
       app,
       plugin,
