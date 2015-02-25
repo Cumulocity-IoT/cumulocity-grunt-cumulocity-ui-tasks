@@ -122,7 +122,7 @@ module.exports = function (grunt) {
     if (grunt.file.exists(appConfig)) {
       app = grunt.file.readJSON(appConfig);
     } else {
-      grunt.fail.fatal('Application cumulocity.json file not found.');
+      grunt.fail.fatal('Application ' + appConfig + '.json file not found.');
       return;
     }
 
@@ -166,7 +166,7 @@ module.exports = function (grunt) {
     if (grunt.file.exists(appConfig)) {
       app = grunt.file.readJSON(appConfig);
     } else {
-      grunt.fail.fatal('Application cumulocity.json file not found.');
+      grunt.fail.fatal('Application ' + appConfig + '.json file not found.');
     }
 
     if (grunt.file.exists(pluginConfig)) {
