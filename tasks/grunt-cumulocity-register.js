@@ -115,14 +115,14 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (option, branch) {
-    var appConfig = 'cumulocity.json',
+    var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
       done = this.async(),
       app;
 
     if (grunt.file.exists(appConfig)) {
       app = grunt.file.readJSON(appConfig);
     } else {
-      grunt.fail.fatal('Application cumulocity.json file not found.');
+      grunt.fail.fatal('Application ' + appConfig + '.json file not found.');
       return;
     }
 
@@ -157,7 +157,7 @@ module.exports = function (grunt) {
       grunt.fail.fatal('You must supply a plugin name');
     }
 
-    var appConfig = 'cumulocity.json',
+    var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
       pluginConfig = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json', grunt.config),
       app,
       plugin,
@@ -166,7 +166,7 @@ module.exports = function (grunt) {
     if (grunt.file.exists(appConfig)) {
       app = grunt.file.readJSON(appConfig);
     } else {
-      grunt.fail.fatal('Application cumulocity.json file not found.');
+      grunt.fail.fatal('Application ' + appConfig + '.json file not found.');
     }
 
     if (grunt.file.exists(pluginConfig)) {
