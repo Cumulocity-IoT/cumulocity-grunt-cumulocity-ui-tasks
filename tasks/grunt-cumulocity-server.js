@@ -113,7 +113,8 @@ module.exports = function (grunt) {
         'application',
         'tenant',
         'cep',
-        'apps'
+        'apps',
+        'vendme-service'
       ];
 
     //we change the url in many steps before, revert to original request
