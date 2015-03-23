@@ -232,7 +232,7 @@ module.exports = function (grunt) {
 
   function placeholders(plugin, text) {
     var map = {
-      ':::PLUGIN_PATH:::': ['/apps', plugin.__rootContextPath, ''].join('/')
+      ':::PLUGIN_PATH:::': ['/apps', plugin.__rootContextPath].join('/')
     };
     Object.keys(map).forEach(function (k) {
       text = text.replace(new RegExp(k, 'g'), map[k]);
