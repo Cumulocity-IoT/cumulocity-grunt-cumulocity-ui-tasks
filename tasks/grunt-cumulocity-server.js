@@ -15,6 +15,7 @@ module.exports = function (grunt) {
     grunt.config('cumulocity.port') ? ':' + grunt.config('cumulocity.port') : ''
   ].join(''),
     proxy = httpProxy.createServer({
+    secure: false,
     target: TARGET
   });
 
