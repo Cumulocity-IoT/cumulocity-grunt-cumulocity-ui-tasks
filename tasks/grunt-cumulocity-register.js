@@ -233,4 +233,10 @@ module.exports = function (grunt) {
 
   grunt.renameTask('c8yAppRegister', 'appRegister');
 
+  grunt.registerTask('register', function (target) {
+    grunt.task.run('appRegister:noImports');
+    grunt.task.run('pluginRegisterAll');
+    grunt.task.run('appRegister:branch:' + target);
+  });
+
 };
