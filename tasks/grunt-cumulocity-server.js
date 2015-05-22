@@ -8,16 +8,20 @@ var url = require('url'),
 module.exports = function (grunt) {
   'use strict';
 
+  var port = grunt.config('cumulocity.port') || grunt.option('port');
+  grunt.config('cumulocity.port', port);
+
   var TARGET = [
     grunt.config('cumulocity.protocol'),
     '://',
     grunt.config('cumulocity.host'),
-    grunt.config('cumulocity.port') ? ':' + grunt.config('cumulocity.port') : ''
+     port ? ':' + port : ''
   ].join(''),
     proxy = httpProxy.createServer({
     secure: false,
     target: TARGET
   });
+
 
   function isCorePresent() {
     return !!getApp('core');
@@ -35,7 +39,6 @@ module.exports = function (grunt) {
       plugin = req.localplugin,
       regex = app && new RegExp('/apps/' + app.contextPath + '/'),
       extractUrl = regex ? req.url.replace(regex, '') : 'none';
-
     return !extractUrl || extractUrl.match(/^index.html/);
   }
 
@@ -50,8 +53,8 @@ module.exports = function (grunt) {
       pathMatch = _path.match(/^\/apps\/([^\/]+)\/?/),
       appContextPath = pathMatch && pathMatch[1],
       apps = grunt.config('localapps');
-
     if (appContextPath) {
+
       req.localapp = _.find(apps, function (app) {
         return app.contextPath === appContextPath;
       });
@@ -127,7 +130,6 @@ module.exports = function (grunt) {
     });
 
     if (proxied) {
-
       if (isIndex(req)) {
         req.url = '/apps/core/index.html';
       }
@@ -243,7 +245,6 @@ module.exports = function (grunt) {
   }
 
   function debug(req, res, next) {
-    console.log(req.localapp, req.locaplugin);
     next();
   }
 
@@ -267,6 +268,12 @@ module.exports = function (grunt) {
     server: {
       options: {
         middleware: connectMidlewares
+      }
+    },
+    test: {
+      options: {
+        middleware: connectMidlewares,
+        keepalive: false
       }
     }
   });

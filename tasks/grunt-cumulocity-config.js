@@ -26,8 +26,9 @@ module.exports = function (grunt) {
   function readApplicationsAndPlugins() {
     var apps = [],
       plugins = [],
-      currentApp = grunt.file.readJSON('./cumulocity.json'),
-      appManifests = grunt.file.expand('../*/cumulocity.json') || [],
+      manifestFile = (grunt.option('manifest') ? grunt.option('manifest') : 'cumulocity') + '.json',
+      currentApp = grunt.file.readJSON('./' + manifestFile),
+      appManifests = grunt.file.expand('../*/cumulocity*.json') || [],
       port = 8000;
 
     appManifests.forEach(function (_path) {

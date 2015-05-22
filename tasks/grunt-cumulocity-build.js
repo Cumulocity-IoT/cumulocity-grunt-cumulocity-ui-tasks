@@ -97,7 +97,8 @@ module.exports = function (grunt) {
     }
 
     if (!grunt.config('localApplication')) {
-      grunt.config('localApplication', grunt.file.readJSON('cumulocity.json'));
+      var manifestFile = (grunt.option('manifest') ? grunt.option('manifest') : 'cumulocity') + '.json';
+      grunt.config('localApplication', grunt.file.readJSON(manifestFile));
     }
 
     var _app = grunt.config('localApplication').contextPath,
