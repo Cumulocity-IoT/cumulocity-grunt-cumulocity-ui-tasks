@@ -142,6 +142,50 @@ function task(grunt) {
     }
 
   });
+
+  grunt.registerTask('prepareTest', function () {
+    var corePath = getCorePath(),
+      coreconfig = grunt.config('coreconfig'),
+      pluginsFiles = [],
+      pluginManifestsGlob = (corePath.isCore ? 'app/' : '') + 'plugins/**/cumulocity.json',
+      jsPath = function (path, f) {
+        var isBower = f.match('bower_components'),
+          isCore = corePath.isCore,
+          bowerPath = (isCore ? 'app/' : '') + f,
+          pluginPath = path + f,
+          _f = isBower ? bowerPath : pluginPath;
+        pluginsFiles.push(_f);
+      };
+
+    grunt.file.expand(pluginManifestsGlob).forEach(function (path) {
+      var manifest = grunt.file.readJSON(path),
+        _path = path.replace('cumulocity.json', '');
+
+      if (manifest.js) {
+        manifest.js.forEach(_.partial(jsPath, _path));
+      }
+    });
+    var isIndex = function (f) { return f.match('index.js'); };
+    var indexFiles = _.filter(pluginsFiles, isIndex);
+    _.forEach(indexFiles, function (f) {
+      var _f = f.replace('index', 'index.mock');
+      if (grunt.file.exists(_f)) {
+        var ix = pluginsFiles.indexOf(f);
+        pluginsFiles.splice(ix, 1, _f);
+      }
+    });
+
+    var files = _.sortBy(pluginsFiles, function (f) {
+      return (f.match(/index(\.mock)?.js/) ? 0 : 1);
+    });
+
+    var karmaCfg = grunt.config('karma'),
+      specFiles = grunt.config('specFiles');
+
+    karmaCfg.test.options.files = [].concat(coreconfig._jstest)
+      .concat(files).concat(specFiles || []);
+    grunt.config('karma', karmaCfg);
+  });
 }
 
 module.exports = task;

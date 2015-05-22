@@ -269,6 +269,12 @@ module.exports = function (grunt) {
       options: {
         middleware: connectMidlewares
       }
+    },
+    test: {
+      options: {
+        middleware: connectMidlewares,
+        keepalive: false
+      }
     }
   });
 

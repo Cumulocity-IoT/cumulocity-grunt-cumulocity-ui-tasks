@@ -69,7 +69,7 @@ module.exports = function (grunt) {
           credentials.user,
           password,
           grunt.config('cumulocity.host'),
-          grunt.config('cumulocity.protocol'),
+          grunt.option('protocol') || grunt.config('cumulocity.protocol'),
           grunt.config('cumulocity.port')
         );
         return true;
