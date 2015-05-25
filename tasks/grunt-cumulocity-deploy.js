@@ -3,87 +3,130 @@ var _ = require('lodash');
 module.exports = function (grunt) {
   'use strict';
   
-  grunt.registerTask('deploy:packManifests', [
-    'readManifests',
-    'deploy:readEnvironmentConfig',
-    'deploy:processManifests',
-    'deploy:writeManifestsPack'
-  ]);
+  var configKey = 'c8yDeployUI';
   
-  grunt.registerTask('deploy:readEnvironmentConfig', function () {
-    var config = grunt.config('deploy') || {},
-      path = './deploy/configs/' + (grunt.option('environment') || 'cumulocity') + '.json';
-
-    if (grunt.file.exists(path)) {
-      config.env = grunt.file.readJSON(path);
-      grunt.log.ok('Loaded config from ' + path + '.');
-    } else {
-      grunt.fail.fatal('Could not find config in ' + path + '!');
-    }
-    
-    grunt.config('deploy', config);
-  });
+  function getConfig() {
+    return grunt.config(configKey) || {};
+  }
   
-  grunt.registerTask('deploy:processManifests', function () {
-    grunt.task.requires('readManifests');
-    grunt.config.requires('deploy');
-    var config = grunt.config('deploy'),
-      currentApp = grunt.config('currentlocalapp'),
+  function setConfig(config) {
+    grunt.config.set(configKey, config);
+  }
+  
+  function getTargetCfgPath() {
+    return './deploy/configs/' + (grunt.option('environment') || 'cumulocity') + '.json';
+  }
+  
+  function getAllApps() {
+    var currentApp = grunt.config('currentlocalapp'),
       apps = grunt.config('localapps'),
-      allApps = [].concat(apps).concat([currentApp]),
-      allPlugins = grunt.config('localplugins');
-      
-    config.manifests = {apps: []};
-      
-    _.each(config.env.applications, function (app) {
-      var appManifest = _.clone(_.find(allApps, function (a) {
-        return a.contextPath === app.contextPath;
+      allApps = [].concat(apps).concat([currentApp]);
+    return allApps;
+  }
+  
+  function getAllPlugins() {
+    return grunt.config('localplugins');
+  }
+  
+  function getAppForCfg(appCfg, targetCfg, allApps, allPlugins) {
+    var app = {manifest: null, plugins: []},
+      manifest = _.clone(_.find(allApps, function (a) {
+        return a.contextPath === appCfg.contextPath;
       }));
-      if (appManifest) {
-        if (config.env && config.env.manifests && config.env.manifests.apps) {
-          appManifest = _.merge(appManifest, config.env.manifests.apps);
+
+    if (manifest) {
+      manifest = cleanAppManifest(manifest, appCfg, targetCfg);
+      grunt.log.ok('Packed application: ' + appCfg.contextPath);
+      _.each(allPlugins, function (plgManifest) {
+        if (plgManifest.__rootContextPath.match('^' + appCfg.contextPath + '/')) {
+          var pluginManifest = _.clone(plgManifest);
+          pluginManifest = cleanPluginManifest(pluginManifest, appCfg, targetCfg);
+          app.plugins.push(pluginManifest);
+          grunt.log.ok('Packed plugin: ' + appCfg.contextPath + '/' + pluginManifest.contextPath);
         }
-        if (app.branch) {
-          appManifest.resourcesUrl = appManifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + app.branch);
-        }
-        _.each(appManifest, function (val,  key) {
-          if (key.match('^__')) {
-            delete appManifest[key];
-          }
-        });
-        var appObj = {manifest: appManifest, plugins: []};
-        grunt.log.ok('Packed application: ' + app.contextPath);
-        _.each(allPlugins, function (plg) {
-          if (plg.__rootContextPath.match('^' + app.contextPath + '/')) {
-            var pluginManifest = _.clone(plg);
-            if (config.env && config.env.manifests && config.env.manifests.plugins) {
-              pluginManifest = _.merge(pluginManifest, config.env.manifests.plugins);
-            }
-            _.each(pluginManifest, function (val,  key) {
-              if (key.match('^__')) {
-                delete pluginManifest[key];
-              }
-            });
-            appObj.plugins.push(pluginManifest);
-            grunt.log.ok('Packed plugin: ' + app.contextPath + '/' + pluginManifest.contextPath);
-          }
-        });
-        config.manifests.apps.push(appObj);
+      });
+      app.manifest = manifest;
+      return app;
+    } else {
+      grunt.fail.fatal('Cannot find manifest for target app: ' + appCfg.contextPath);
+    }
+  }
+  
+  function cleanAppManifest(manifest, appCfg, targetCfg) {
+    if (targetCfg && targetCfg.manifests && targetCfg.manifests.apps) {
+      manifest = _.merge(manifest, targetCfg.manifests.apps);
+    }
+    if (appCfg.branch) {
+      manifest.resourcesUrl = manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
+    }
+    _.each(manifest, function (val,  key) {
+      if (key.match('^__')) {
+        delete manifest[key];
       }
     });
+    return manifest;
+  }
+  
+  function cleanPluginManifest(manifest, appCfg, targetCfg) {
+    if (targetCfg && targetCfg.manifests && targetCfg.manifests.plugins) {
+      manifest = _.merge(manifest, targetCfg.manifests.plugins);
+    }
+    _.each(manifest, function (val,  key) {
+      if (key.match('^__')) {
+        delete manifest[key];
+      }
+    });
+    return manifest;
+  }
+  
+  function getManifestsPackWritePath(targetCfg) {
+    return './deploy/manifests/' + targetCfg.name + '_' + targetCfg.version + '.json';
+  }
+  
+  grunt.registerTask('c8yDeployUI:packManifests', [
+    'readManifests',
+    'c8yDeployUI:loadTargetConfig',
+    'c8yDeployUI:prepareManifestsPack',
+    'c8yDeployUI:writeManifestsPack'
+  ]);
+  
+  grunt.registerTask('c8yDeployUI:loadTargetConfig', function () {
+    var config = getConfig(),
+      path = getTargetCfgPath();
 
-    grunt.config('deploy', config);
+    if (grunt.file.exists(path)) {
+      config.targetCfg = grunt.file.readJSON(path);
+      grunt.log.ok('Loaded target config from ' + path + '.');
+    } else {
+      grunt.fail.fatal('Cannot find target config in ' + path + '!');
+    }
+    
+    setConfig(config);
   });
   
-  grunt.registerTask('deploy:writeManifestsPack', function () {
-    grunt.config.requires('deploy');
-    var config = grunt.config('deploy'),
-      path = './deploy/manifests/' + config.env.name + '_' + config.env.version + '.json';
+  grunt.registerTask('c8yDeployUI:prepareManifestsPack', function () {
+    var config = getConfig(),
+      allApps = getAllApps(),
+      allPlugins = getAllPlugins(),
+      manifestsPack = {apps: []};
+      
+    _.each(config.targetCfg.applications, function (appCfg) {
+      var app = getAppForCfg(appCfg, config.targetCfg, allApps, allPlugins);
+      manifestsPack.apps.push(app);
+    });
+
+    config.manifestsPack = manifestsPack;
+    setConfig(config);
+  });
+  
+  grunt.registerTask('c8yDeployUI:writeManifestsPack', function () {
+    var config = getConfig(),
+      path = getManifestsPackWritePath(config.targetCfg);
     
-    grunt.file.write(path, JSON.stringify(config.manifests));
+    grunt.file.write(path, JSON.stringify(config.manifestsPack));
     grunt.log.ok('Manifests pack saved to ' + path + '.');
   });
-  
+
   grunt.registerTask('deploy:registerManifests', [
     'deploy:readManifestsPack',
     'deploy:registerManifestsPack'
