@@ -83,4 +83,63 @@ module.exports = function (grunt) {
     grunt.file.write(path, JSON.stringify(config.manifests));
     grunt.log.ok('Manifests pack saved to ' + path + '.');
   });
+  
+  grunt.registerTask('deploy:registerManifests', [
+    'deploy:readManifestsPack',
+    'deploy:registerManifestsPack'
+  ]);
+  
+  grunt.registerTask('deploy:readManifestsPack', function () {
+    var config = grunt.config('deploy') || {},
+      path = grunt.option('manifests') || 'manifests.json';
+
+    if (grunt.file.exists(path)) {
+      config.manifests = grunt.file.readJSON(path);
+      grunt.log.ok('Loaded manifests from ' + path + '.');
+    } else {
+      grunt.fail.fatal('Could not find manifests in ' + path + '!');
+    }
+    
+    grunt.config('deploy', config);
+  });
+  
+  grunt.registerTask('deploy:registerManifestsPack', '', function () {
+    grunt.task.requires('deploy:readManifestsPack');
+    grunt.config.requires('deploy');
+    var config = grunt.config('deploy');
+      
+    _.each(config.manifests.apps, function (app, appIndex) {
+      grunt.task.run('deploy:registerAppManifestFromPack:' + appIndex + ':noImports');
+      _.each(app.plugins, function (plugin, pluginIndex) {
+        grunt.task.run('deploy:registerPluginManifestFromPack:' + appIndex + ':' + pluginIndex);
+      });
+      grunt.task.run('deploy:registerAppManifestFromPack:' + appIndex + ':withImports');
+    });
+  });
+  
+  grunt.registerTask('deploy:registerAppManifestFromPack', '', function (appIndex, option) {
+    grunt.task.requires('deploy:readManifestsPack');
+    grunt.config.requires('deploy');
+    var config = grunt.config('deploy'),
+      app = _.clone(config.manifests.apps[appIndex].manifest);
+      
+    if (option === 'noImports') {
+      app.imports = [];
+    }
+    
+    grunt.config.set('c8yAppRegister', {app: app});
+    grunt.task.run('c8yAppRegister:' + app.contextPath + (option ? ':' + option : ''));
+  });
+  
+  grunt.registerTask('deploy:registerPluginManifestFromPack', '', function (appIndex, pluginIndex) {
+    grunt.task.requires('deploy:readManifestsPack');
+    grunt.config.requires('deploy');
+    var config = grunt.config('deploy'),
+      app = _.clone(config.manifests.apps[appIndex].manifest),
+      plugin = _.clone(config.manifests.apps[appIndex].plugins[pluginIndex]);
+    
+    plugin.directoryName = plugin.contextPath;
+    grunt.config.set('c8yPluginRegister', {app: app, plugin: plugin});
+    grunt.task.run('c8yPluginRegister:' + app.contextPath + ':' + plugin.contextPath);
+  });
 };
