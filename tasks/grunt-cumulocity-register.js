@@ -37,6 +37,7 @@ module.exports = function (grunt) {
         {message: 'What is your username?', name: 'user'}
       ], function (answers) {
         grunt.file.write('.cumulocity', JSON.stringify(answers, null, 2));
+        grunt.log.ok('Credentials stored in .cumulocity file.');
         defer.resolve(answers);
       });
     }
@@ -119,7 +120,6 @@ module.exports = function (grunt) {
       done = this.async();
     
     return checkCredentials().then(function () {
-      grunt.log.ok('Credentials registered.');
       grunt.log.writeln('Registering application...');
 
       return applicationSave(app).then(function () {
