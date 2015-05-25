@@ -120,10 +120,9 @@ module.exports = function (grunt) {
       done = this.async();
     
     return checkCredentials().then(function () {
-      grunt.log.writeln('Registering application...');
-
+      grunt.log.writeln('Registering ' + app.contextPath + ' application...');
       return applicationSave(app).then(function () {
-        grunt.log.ok('Application registered.');
+        grunt.log.ok('Application ' + app.contextPath + ' registered.');
         return done();
       }, onError);
     }, onError);
@@ -163,7 +162,8 @@ module.exports = function (grunt) {
     var app = grunt.config.get('c8yPluginRegister.app'),
       plugin = grunt.config.get('c8yPluginRegister.plugin'),
       done = this.async();
-
+      
+    grunt.log.writeln('Registering ' + app.contextPath + '/' + plugin.contextPath + ' plugin...');
     return checkCredentials()
       .then(function () {
         var appPromise = grunt.config('appPromise');
@@ -174,9 +174,8 @@ module.exports = function (grunt) {
         return appPromise;
       })
       .then(function (app) {
-
         if (!app.id) {
-          grunt.fail.fatal('Application must be registered');
+          grunt.fail.fatal('Application must be registered first!');
         }
         plugin.app_id = app.id;
         plugin.rootContextPath = app.contextPath + '/' + plugin.directoryName;
@@ -184,7 +183,7 @@ module.exports = function (grunt) {
       })
       .then(pluginSave)
       .then(function () {
-        grunt.log.ok('Plugin ' + pluginName + ' successfully registered');
+        grunt.log.ok('Plugin ' + app.contextPath + '/' + plugin.contextPath + ' successfully registered.');
         return done();
       })
       .fail(onError);
