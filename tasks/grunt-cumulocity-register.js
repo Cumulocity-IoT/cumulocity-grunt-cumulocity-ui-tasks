@@ -114,15 +114,30 @@ module.exports = function (grunt) {
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
 
-  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (option, branch) {
+  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (appName, optionOrBranch) {
+    var app = grunt.config.get('c8yAppRegister.app'),
+      done = this.async();
+    
+    return checkCredentials().then(function () {
+      grunt.log.ok('Credentials registered.');
+      grunt.log.writeln('Registering application...');
+
+      return applicationSave(app).then(function () {
+        grunt.log.ok('Application registered.');
+        return done();
+      }, onError);
+    }, onError);
+  });
+  
+  grunt.registerTask('appRegister', 'Task to register and update current application for given option and branch', function (option, branch) {
     var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
-      done = this.async(),
       app;
 
     if (grunt.file.exists(appConfig)) {
       app = grunt.file.readJSON(appConfig);
+      grunt.log.ok('Loaded application manifest from ' + appConfig + '.');
     } else {
-      grunt.fail.fatal('Application ' + appConfig + '.json file not found.');
+      grunt.fail.fatal('Application manifest not found in ' + appConfig + '.json.');
       return;
     }
 
@@ -140,15 +155,8 @@ module.exports = function (grunt) {
       }
     }
 
-    checkCredentials().then(function () {
-      grunt.log.writeln('Credentials registered');
-      grunt.log.writeln('Registering application.');
-
-      return applicationSave(app).then(function () {
-        grunt.log.ok('Application registered');
-        return done();
-      }, onError);
-    }, onError);
+    grunt.config.set('c8yAppRegister', {app: app});
+    grunt.task.run('c8yAppRegister:' + app.contextPath + ':' + (branch ? branch : option));
   });
 
   grunt.registerTask('c8yPluginRegister', 'Task to register and update specified plugin', function (_plugin) {
