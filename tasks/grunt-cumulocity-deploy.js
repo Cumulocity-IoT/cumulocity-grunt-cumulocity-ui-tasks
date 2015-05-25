@@ -83,14 +83,18 @@ module.exports = function (grunt) {
     return './deploy/manifests/' + targetCfg.name + '_' + targetCfg.version + '.json';
   }
   
-  grunt.registerTask('c8yDeployUI:packManifests', [
+  function getManifestsPackLoadPath(targetCfg) {
+    return grunt.option('manifests') || 'manifests.json';
+  }
+  
+  grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
     'c8yDeployUI:prepareManifestsPack',
     'c8yDeployUI:writeManifestsPack'
   ]);
   
-  grunt.registerTask('c8yDeployUI:loadTargetConfig', function () {
+  grunt.registerTask('c8yDeployUI:loadTargetConfig', 'Loads target config for deployment', function () {
     var config = getConfig(),
       path = getTargetCfgPath();
 
@@ -104,7 +108,7 @@ module.exports = function (grunt) {
     setConfig(config);
   });
   
-  grunt.registerTask('c8yDeployUI:prepareManifestsPack', function () {
+  grunt.registerTask('c8yDeployUI:prepareManifestsPack', 'Prepares manifests pack to write', function () {
     var config = getConfig(),
       allApps = getAllApps(),
       allPlugins = getAllPlugins(),
@@ -119,7 +123,7 @@ module.exports = function (grunt) {
     setConfig(config);
   });
   
-  grunt.registerTask('c8yDeployUI:writeManifestsPack', function () {
+  grunt.registerTask('c8yDeployUI:writeManifestsPack', 'Writes manifests pack to file', function () {
     var config = getConfig(),
       path = getManifestsPackWritePath(config.targetCfg);
     
@@ -127,62 +131,78 @@ module.exports = function (grunt) {
     grunt.log.ok('Manifests pack saved to ' + path + '.');
   });
 
-  grunt.registerTask('deploy:registerManifests', [
-    'deploy:readManifestsPack',
-    'deploy:registerManifestsPack'
+  grunt.registerTask('c8yDeployUI:registerManifests', 'Registers manifests from provided file', [
+    'c8yDeployUI:loadManifestsPack',
+    'c8yDeployUI:registerManifestsPack'
   ]);
   
-  grunt.registerTask('deploy:readManifestsPack', function () {
-    var config = grunt.config('deploy') || {},
-      path = grunt.option('manifests') || 'manifests.json';
+  grunt.registerTask('c8yDeployUI:loadManifestsPack', 'Loads manifests pack from file', function () {
+    var config = getConfig(),
+      path = getManifestsPackLoadPath();
 
     if (grunt.file.exists(path)) {
-      config.manifests = grunt.file.readJSON(path);
-      grunt.log.ok('Loaded manifests from ' + path + '.');
+      config.manifestsPack = grunt.file.readJSON(path);
+      grunt.log.ok('Loaded manifests pack from ' + path + '.');
     } else {
-      grunt.fail.fatal('Could not find manifests in ' + path + '!');
+      grunt.fail.fatal('Cannot find manifests pack in ' + path + '!');
     }
     
-    grunt.config('deploy', config);
+    setConfig(config);
   });
   
-  grunt.registerTask('deploy:registerManifestsPack', '', function () {
-    grunt.task.requires('deploy:readManifestsPack');
-    grunt.config.requires('deploy');
-    var config = grunt.config('deploy');
+  grunt.registerTask('c8yDeployUI:registerManifestsPack', 'Registers manifests from pack', function () {
+    var config = getConfig(),
+      apps = config.manifestsPack.apps;
       
-    _.each(config.manifests.apps, function (app, appIndex) {
-      grunt.task.run('deploy:registerAppManifestFromPack:' + appIndex + ':noImports');
-      _.each(app.plugins, function (plugin, pluginIndex) {
-        grunt.task.run('deploy:registerPluginManifestFromPack:' + appIndex + ':' + pluginIndex);
+    _.each(apps, function (app) {
+      var appManifest = app.manifest;
+      grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports');
+      _.each(app.plugins, function (plugin) {
+        grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
       });
-      grunt.task.run('deploy:registerAppManifestFromPack:' + appIndex + ':withImports');
+    });
+    
+    _.each(apps, function (app) {
+      var appManifest = app.manifest;
+      _.each(app.plugins, function (plugin) {
+        grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
+      });
+      grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
     });
   });
   
-  grunt.registerTask('deploy:registerAppManifestFromPack', '', function (appIndex, option) {
-    grunt.task.requires('deploy:readManifestsPack');
-    grunt.config.requires('deploy');
-    var config = grunt.config('deploy'),
-      app = _.clone(config.manifests.apps[appIndex].manifest);
+  grunt.registerTask('c8yDeployUI:appRegister', 'Register app from manifests pack', function (appContextPath, option) {
+    var config = getConfig(),
+      app = _.find(config.manifestsPack.apps, function (a) {
+        return a.manifest.contextPath === appContextPath;
+      }),
+      appManifest = app.manifest;
       
     if (option === 'noImports') {
       app.imports = [];
     }
     
-    grunt.config.set('c8yAppRegister', {app: app});
-    grunt.task.run('c8yAppRegister:' + app.contextPath + (option ? ':' + option : ''));
+    grunt.config.set('c8yAppRegister', {app: appManifest});
+    grunt.task.run('c8yAppRegister');
   });
   
-  grunt.registerTask('deploy:registerPluginManifestFromPack', '', function (appIndex, pluginIndex) {
-    grunt.task.requires('deploy:readManifestsPack');
-    grunt.config.requires('deploy');
-    var config = grunt.config('deploy'),
-      app = _.clone(config.manifests.apps[appIndex].manifest),
-      plugin = _.clone(config.manifests.apps[appIndex].plugins[pluginIndex]);
+  grunt.registerTask('c8yDeployUI:pluginRegister', 'Register plugin from manifests pack', function (appContextPath, pluginContextPath, option) {
+    var config = getConfig(),
+      app = _.find(config.manifestsPack.apps, function (a) {
+        return a.manifest.contextPath === appContextPath;
+      }),
+      appManifest = app.manifest,
+      pluginManifest = _.find(app.plugins, function (p) {
+        return p.contextPath === pluginContextPath;
+      });
+      
+    pluginManifest.directoryName = pluginManifest.contextPath;
+      
+    if (option === 'noImports') {
+      pluginManifest.imports = [];
+    }
     
-    plugin.directoryName = plugin.contextPath;
-    grunt.config.set('c8yPluginRegister', {app: app, plugin: plugin});
-    grunt.task.run('c8yPluginRegister:' + app.contextPath + ':' + plugin.contextPath);
+    grunt.config.set('c8yPluginRegister', {app: appManifest, plugin: pluginManifest});
+    grunt.task.run('c8yPluginRegister');
   });
 };
