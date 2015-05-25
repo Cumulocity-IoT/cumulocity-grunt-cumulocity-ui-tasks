@@ -1,4 +1,5 @@
-var _ = require('lodash');
+var _ = require('lodash'),
+  shell = require('shelljs');
 
 module.exports = function (grunt) {
   'use strict';
@@ -30,9 +31,7 @@ module.exports = function (grunt) {
   
   function getAppForCfg(appCfg, targetCfg, allApps, allPlugins) {
     var app = {manifest: null, plugins: []},
-      manifest = _.clone(_.find(allApps, function (a) {
-        return a.contextPath === appCfg.contextPath;
-      }));
+      manifest = getAppExtendedManifest(appCfg, allApps);
 
     if (manifest) {
       manifest = cleanAppManifest(manifest, appCfg, targetCfg);
@@ -50,6 +49,12 @@ module.exports = function (grunt) {
     } else {
       grunt.fail.fatal('Cannot find manifest for target app: ' + appCfg.contextPath);
     }
+  }
+  
+  function getAppExtendedManifest(appCfg, allApps) {
+    return _.clone(_.find(allApps, function (a) {
+      return a.contextPath === appCfg.contextPath;
+    }));
   }
   
   function cleanAppManifest(manifest, appCfg, targetCfg) {
@@ -90,6 +95,8 @@ module.exports = function (grunt) {
   grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
+    'c8yDeployUI:hgPullUpdate',
+    'readManifests',
     'c8yDeployUI:prepareManifestsPack',
     'c8yDeployUI:writeManifestsPack'
   ]);
@@ -106,6 +113,22 @@ module.exports = function (grunt) {
     }
     
     setConfig(config);
+  });
+  
+  grunt.registerTask('c8yDeployUI:hgPullUpdate', 'Updates all required repositories to required branches or tags', function () {
+    var config = getConfig(),
+      allApps = getAllApps(),
+      done = this.async();
+
+    _.each(config.targetCfg.applications, function (appCfg) {
+      var app = getAppExtendedManifest(appCfg, allApps);
+      shell.pushd(app.__dirname);
+      grunt.log.ok('hg pull ' + app.contextPath);
+      shell.exec('hg pull');
+      grunt.log.ok('hg update ' + app.contextPath);
+      shell.exec('hg update ' + appCfg.branch);
+      shell.popd();
+    });
   });
   
   grunt.registerTask('c8yDeployUI:prepareManifestsPack', 'Prepares manifests pack to write', function () {
