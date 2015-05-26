@@ -158,7 +158,7 @@ module.exports = function (grunt) {
     grunt.task.run('c8yAppRegister:' + app.contextPath + ':' + (branch ? branch : option));
   });
   
-  grunt.registerTask('c8yPluginRegister', 'Task to register and update specified plugin', function (appName, pluginName) {
+  grunt.registerTask('c8yPluginRegister', 'Task to register and update specified plugin', function () {
     var app = grunt.config.get('c8yPluginRegister.app'),
       plugin = grunt.config.get('c8yPluginRegister.plugin'),
       done = this.async();
@@ -166,10 +166,10 @@ module.exports = function (grunt) {
     grunt.log.writeln('Registering ' + app.contextPath + '/' + plugin.contextPath + ' plugin...');
     return checkCredentials()
       .then(function () {
-        var appPromise = grunt.config('appPromise');
+        var appPromise = grunt.config('appPromise.' + app.contextPath);
         if (!appPromise) {
           appPromise = cumulocityServer.findApplication(app);
-          grunt.config('appPromise', appPromise);
+          grunt.config('appPromise.' + app.contextPath, appPromise);
         }
         return appPromise;
       })
