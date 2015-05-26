@@ -23,24 +23,24 @@ module.exports = function (grunt) {
   }
   
   function getTargetCfgPath() {
-    return './deploy/configs/' + (grunt.option('environment') || 'cumulocity') + '.json';
+    return './deploy/targets/' + (grunt.option('target') || 'cumulocity') + '.json';
   }
-  
+
   function getTargetCfgWithDefaults(targetCfg) {
     return _.merge(targetCfgDefaults, targetCfg);
   }
-  
+
   function getAllApps() {
     var currentApp = grunt.config('currentlocalapp'),
       apps = grunt.config('localapps'),
       allApps = [].concat(apps).concat([currentApp]);
     return allApps;
   }
-  
+
   function getAllPlugins() {
     return grunt.config('localplugins');
   }
-  
+
   function getAppForCfg(appCfg, targetCfg) {
     var app = {manifest: null, plugins: []},
       manifest = getAppExtendedManifest(appCfg),
