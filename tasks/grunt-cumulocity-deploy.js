@@ -4,7 +4,15 @@ var _ = require('lodash'),
 module.exports = function (grunt) {
   'use strict';
   
-  var configKey = 'c8yDeployUI';
+  var configKey = 'c8yDeployUI',
+    targetCfgDefaults = {
+      manifests: {
+        apps: {
+          resourcesUsername: 'resourcesUsername',
+          resourcesPassword: 'resourcesPassword'
+        }
+      }
+    };
   
   function getConfig() {
     return grunt.config(configKey) || {};
@@ -16,6 +24,10 @@ module.exports = function (grunt) {
   
   function getTargetCfgPath() {
     return './deploy/configs/' + (grunt.option('environment') || 'cumulocity') + '.json';
+  }
+  
+  function getTargetCfgWithDefaults(targetCfg) {
+    return _.merge(targetCfgDefaults, targetCfg);
   }
   
   function getAllApps() {
@@ -108,7 +120,7 @@ module.exports = function (grunt) {
       path = getTargetCfgPath();
 
     if (grunt.file.exists(path)) {
-      config.targetCfg = grunt.file.readJSON(path);
+      config.targetCfg = getTargetCfgWithDefaults(grunt.file.readJSON(path));
       grunt.log.ok('Loaded target config from ' + path + '.');
     } else {
       grunt.fail.fatal('Cannot find target config in ' + path + '!');
