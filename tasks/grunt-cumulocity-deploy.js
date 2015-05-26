@@ -118,21 +118,29 @@ module.exports = function (grunt) {
   });
   
   grunt.registerTask('c8yDeployUI:hgPullUpdate', 'Updates all required repositories to required branches or tags', function () {
-    var config = getConfig();
+    var config = getConfig(),
+      hgPullCmd = 'hg pull',
+      hgUpdateCmd = 'hg update';
 
     _.each(config.targetCfg.applications, function (appCfg) {
-      var app = getAppExtendedManifest(appCfg);
+      var app = getAppExtendedManifest(appCfg),
+        pullCmd = hgPullCmd, pullCmdOutput,
+        updateCmd = hgUpdateCmd + ' ' + appCfg.branch, updateCmdOutput;
+      
       shell.pushd(app.__dirname);
-      grunt.log.ok('hg pull ' + app.contextPath);
-      var pullOutput = shell.exec('hg pull').output;
-      if (pullOutput.match(/^abort:/)) {
+      
+      grunt.log.ok(app.contextPath + ': ' + pullCmd);
+      pullCmdOutput = shell.exec(pullCmd).output;
+      if (pullCmdOutput.match(/^abort:/)) {
         grunt.fail.fatal('Aborted due to hg pull errors - see above!');
       }
-      grunt.log.ok('hg update ' + app.contextPath);
-      var updateOutput = shell.exec('hg update ' + appCfg.branch).output;
-      if (updateOutput.match(/^abort:/)) {
+      
+      grunt.log.ok(app.contextPath + ': ' + updateCmd);
+      updateCmdOutput = shell.exec(updateCmd).output;
+      if (updateCmdOutput.match(/^abort:/)) {
         grunt.fail.fatal('Aborted due to hg update errors - see above!');
       }
+      
       shell.popd();
     });
   });
