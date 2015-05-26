@@ -29,9 +29,10 @@ module.exports = function (grunt) {
     return grunt.config('localplugins');
   }
   
-  function getAppForCfg(appCfg, targetCfg, allApps, allPlugins) {
+  function getAppForCfg(appCfg, targetCfg) {
     var app = {manifest: null, plugins: []},
-      manifest = getAppExtendedManifest(appCfg, allApps);
+      manifest = getAppExtendedManifest(appCfg),
+      allPlugins = getAllPlugins();
 
     if (manifest) {
       manifest = cleanAppManifest(manifest, appCfg, targetCfg);
@@ -51,7 +52,8 @@ module.exports = function (grunt) {
     }
   }
   
-  function getAppExtendedManifest(appCfg, allApps) {
+  function getAppExtendedManifest(appCfg) {
+    var allApps = getAllApps();
     return _.clone(_.find(allApps, function (a) {
       return a.contextPath === appCfg.contextPath;
     }));
@@ -116,29 +118,31 @@ module.exports = function (grunt) {
   });
   
   grunt.registerTask('c8yDeployUI:hgPullUpdate', 'Updates all required repositories to required branches or tags', function () {
-    var config = getConfig(),
-      allApps = getAllApps(),
-      done = this.async();
+    var config = getConfig();
 
     _.each(config.targetCfg.applications, function (appCfg) {
-      var app = getAppExtendedManifest(appCfg, allApps);
+      var app = getAppExtendedManifest(appCfg);
       shell.pushd(app.__dirname);
       grunt.log.ok('hg pull ' + app.contextPath);
-      shell.exec('hg pull');
+      var pullOutput = shell.exec('hg pull').output;
+      if (pullOutput.match(/^abort:/)) {
+        grunt.fail.fatal('Aborted due to hg pull errors - see above!');
+      }
       grunt.log.ok('hg update ' + app.contextPath);
-      shell.exec('hg update ' + appCfg.branch);
+      var updateOutput = shell.exec('hg update ' + appCfg.branch).output;
+      if (updateOutput.match(/^abort:/)) {
+        grunt.fail.fatal('Aborted due to hg update errors - see above!');
+      }
       shell.popd();
     });
   });
   
   grunt.registerTask('c8yDeployUI:prepareManifestsPack', 'Prepares manifests pack to write', function () {
     var config = getConfig(),
-      allApps = getAllApps(),
-      allPlugins = getAllPlugins(),
       manifestsPack = {apps: []};
       
     _.each(config.targetCfg.applications, function (appCfg) {
-      var app = getAppForCfg(appCfg, config.targetCfg, allApps, allPlugins);
+      var app = getAppForCfg(appCfg, config.targetCfg);
       manifestsPack.apps.push(app);
     });
 
