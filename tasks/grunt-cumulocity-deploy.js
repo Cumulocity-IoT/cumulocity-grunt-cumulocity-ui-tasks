@@ -204,9 +204,17 @@ module.exports = function (grunt) {
         return a.manifest.contextPath === appContextPath;
       }),
       appManifest = app.manifest;
-      
+
     if (option === 'noImports') {
-      app.imports = [];
+      appManifest.imports = [];
+    }
+    
+    if (config.appManifests && config.appManifests.resourcesUsername) {
+      appManifest.resourcesUsername = config.appManifests.resourcesUsername;
+    }
+    
+    if (config.appManifests && config.appManifests.resourcesPassword) {
+      appManifest.resourcesPassword = config.appManifests.resourcesPassword;
     }
     
     grunt.config.set('c8yAppRegister', {app: appManifest});
