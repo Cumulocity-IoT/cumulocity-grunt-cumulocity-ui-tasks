@@ -167,7 +167,7 @@ module.exports = function (grunt) {
       config.manifestsPack = grunt.file.readJSON(path);
       grunt.log.ok('Loaded manifests pack from ' + path + '.');
     } else {
-      grunt.fail.fatal('Cannot find manifests pack in ' + path + '!');
+      grunt.fail.fatal('Cannot find manifests pack in ' + path + '! Use --manifests option to provide proper path.');
     }
     
     setConfig(config);
