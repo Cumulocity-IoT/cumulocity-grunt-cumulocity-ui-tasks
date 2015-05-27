@@ -212,9 +212,13 @@ module.exports = function (grunt) {
     _.each(apps, function (app) {
       var appManifest = app.manifest;
       _.each(app.plugins, function (plugin) {
-        grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
+        if (plugin.imports && plugin.imports.length) {
+          grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
+        }
       });
-      grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
+      if (appManifest.imports && appManifest.imports.length) {
+        grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
+      }
     });
   });
   
