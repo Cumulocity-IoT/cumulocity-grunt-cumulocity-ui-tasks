@@ -75,6 +75,19 @@ module.exports = function (grunt) {
     if (targetCfg && targetCfg.manifests && targetCfg.manifests.apps) {
       manifest = _.merge(manifest, targetCfg.manifests.apps);
     }
+    if (appCfg.manifest) {
+      manifest = _.merge(manifest, appCfg.manifest);
+    }
+    if (appCfg.removeImports) {
+      _.each(appCfg.removeImports, function (imp) {
+        manifest.imports = _.without(manifest.imports, imp);
+      });
+    }
+    if (appCfg.addImports) {
+      _.each(appCfg.addImports, function (imp) {
+        manifest.imports.push(imp);
+      });
+    }
     if (appCfg.branch) {
       manifest.resourcesUrl = manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
     }
