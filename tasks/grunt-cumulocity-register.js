@@ -163,7 +163,7 @@ module.exports = function (grunt) {
       plugin = grunt.config.get('c8yPluginRegister.plugin'),
       done = this.async();
       
-    grunt.log.writeln('Registering ' + app.contextPath + '/' + plugin.contextPath + ' plugin...');
+    grunt.log.writeln('Registering ' + app.contextPath + '/' + plugin.directoryName + ' plugin...');
     return checkCredentials()
       .then(function () {
         var appPromise = grunt.config('appPromise.' + app.contextPath);
@@ -183,7 +183,7 @@ module.exports = function (grunt) {
       })
       .then(pluginSave)
       .then(function () {
-        grunt.log.ok('Plugin ' + app.contextPath + '/' + plugin.contextPath + ' successfully registered.');
+        grunt.log.ok('Plugin ' + app.contextPath + '/' + plugin.directoryName + ' successfully registered.');
         return done();
       })
       .fail(onError);
