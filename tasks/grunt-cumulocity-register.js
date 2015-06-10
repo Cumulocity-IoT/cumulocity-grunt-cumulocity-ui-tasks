@@ -1,9 +1,7 @@
 module.exports = function (grunt) {
   'use strict';
 
-  var Q = require('q'),
-    inquirer = require('inquirer'),
-    _ = require('lodash'),
+  var _ = require('lodash'),
     c8yServer = require('../lib/c8yServer'),
     c8yCredentials = require('../lib/c8yCredentials')(grunt);
 
@@ -12,36 +10,10 @@ module.exports = function (grunt) {
     return _.filter(plugins, '__isCurrent');
   }
 
-  function getPassword() {
-    var defer = Q.defer();
-
-    if (process.env.C8Y_PASS) {
-      defer.resolve(process.env.C8Y_PASS);
-    } else {
-      inquirer.prompt([
-        {message: 'What is your password?', name: 'password', type: 'password'}
-      ], function (answers) {
-        var pass = process.env.C8Y_PASS = answers.password;
-        defer.resolve(pass);
-      });
-    }
-
-    return defer.promise;
-  }
-
   function checkCredentials() {
     return c8yCredentials.get().then(function (credentials) {
-      return getPassword().then(function (password) {
-        c8yServer.init(
-          credentials.tenant,
-          credentials.user,
-          password,
-          grunt.config('cumulocity.host'),
-          grunt.option('protocol') || grunt.config('cumulocity.protocol'),
-          grunt.config('cumulocity.port')
-        );
-        return true;
-      });
+      c8yServer.init(credentials);
+      return true;
     });
   }
 
@@ -51,30 +23,11 @@ module.exports = function (grunt) {
   }
 
   function pluginSave(plugin) {
-    var pManifest = grunt.template.process([
-        '<%= paths.plugins %>/',
-        plugin.directoryName ,
-        '/cumulocity.json',
-      ].join(''), grunt.config);
-
     return c8yServer.findPlugin(plugin)
       .then(c8yServer.savePlugin)
-      .then(function (_plugin) {
+      .then(function () {
         return plugin;
       });
-  }
-
-  function pluginClearId(_plugin) {
-    var manifestPath = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json');
-
-    if (grunt.file.exists(manifestPath)) {
-      var manifestdata = grunt.file.readJSON(manifestPath);
-      delete manifestdata._id;
-      grunt.file.write(manifestPath, JSON.stringify(manifestdata, null, 2));
-      grunt.log.oklns('Plugin id cleared');
-    } else {
-      grunt.fail.fatal('Plugin ' + _plugin + ' manifest cannot be found');
-    }
   }
 
   function onError(err) {
@@ -82,7 +35,7 @@ module.exports = function (grunt) {
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
 
-  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (appName, optionOrBranch) {
+  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function () {
     var app = grunt.config.get('c8yAppRegister.app'),
       done = this.async();
 
