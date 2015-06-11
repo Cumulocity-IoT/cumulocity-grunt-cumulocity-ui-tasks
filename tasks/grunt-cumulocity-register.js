@@ -2,7 +2,7 @@ module.exports = function (grunt) {
   'use strict';
 
   var _ = require('lodash'),
-    c8yServer = require('../lib/c8yServer'),
+    c8yServer = require('../lib/c8yServer')(grunt),
     c8yCredentials = require('../lib/c8yCredentials')(grunt);
 
   function getCurrentPlugins() {
