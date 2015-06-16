@@ -1,6 +1,8 @@
 'use strict';
 
-var sinon = require('sinon'),
+var Q = require('q'),
+  _ = require('lodash'),
+  sinon = require('sinon'),
   proxyquire = require('proxyquire'),
   chai = require('chai');
 
@@ -37,9 +39,27 @@ describe('c8yUtil', function () {
     var callback, task;
 
     beforeEach(function () {
-      callback = function () {};
+      callback = sinon.stub();
       c8yUtil.registerAsync('someTask', callback);
-      task = grunt.registerTask.getCall(0).args[1];
+      var call = grunt.registerTask.getCall(0);
+      task = call.args[1];
+    });
+
+    it('should call the provided callback', function () {
+      var deferred = Q.defer();
+      var done = function () {
+        deferred.resolve();
+      };
+      var thisValue = {
+        async: function () {
+          return done;
+        }
+      };
+      task = _.bind(task, thisValue);
+      task();
+      return deferred.promise.then(function () {
+        chai.expect(callback.callCount).to.equal(1);
+      });
     });
   });
 });
