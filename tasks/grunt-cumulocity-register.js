@@ -1,113 +1,33 @@
-var Q = require('q'),
-  inquirer = require('inquirer'),
-  _ = require('lodash'),
-  cumulocityServer = require('../lib/cumulocityServer');
-
 module.exports = function (grunt) {
   'use strict';
+
+  var _ = require('lodash'),
+    c8yServer = require('../lib/c8yServer')(grunt),
+    c8yCredentials = require('../lib/c8yCredentials')(grunt);
 
   function getCurrentPlugins() {
     var plugins = grunt.config('localplugins') || [];
     return _.filter(plugins, '__isCurrent');
   }
 
-  function getUserConfig() {
-    var output  = {};
-    if (process.env.C8Y_TENANT && process.env.C8Y_USER) {
-      output = {
-        tenant : process.env.C8Y_TENANT,
-        user: process.env.C8Y_USER
-      };
-    } else if (grunt.file.exists('.cumulocity')) {
-      output = grunt.file.readJSON('.cumulocity');
-    }
-
-    return output;
-  }
-
-  function getCredentials() {
-    var defer = Q.defer(),
-      userConfig = getUserConfig();
-
-    if (userConfig.tenant && userConfig.user) {
-      defer.resolve(userConfig);
-    } else {
-      inquirer.prompt([
-        {message: 'What is your cumulocity tenant?', name: 'tenant'},
-        {message: 'What is your username?', name: 'user'}
-      ], function (answers) {
-        grunt.file.write('.cumulocity', JSON.stringify(answers, null, 2));
-        grunt.log.ok('Credentials stored in .cumulocity file.');
-        defer.resolve(answers);
-      });
-    }
-
-    return defer.promise;
-  }
-
-  function getPassword() {
-    var defer = Q.defer();
-
-    if (process.env.C8Y_PASS) {
-      defer.resolve(process.env.C8Y_PASS);
-    } else {
-      inquirer.prompt([
-        {message: 'What is your password?', name: 'password', type: 'password'}
-      ], function (answers) {
-        var pass = process.env.C8Y_PASS = answers.password;
-        defer.resolve(pass);
-      });
-    }
-
-    return defer.promise;
-  }
-
   function checkCredentials() {
-    return getCredentials().then(function (credentials) {
-      return getPassword().then(function (password) {
-        cumulocityServer.init(
-          credentials.tenant,
-          credentials.user,
-          password,
-          grunt.config('cumulocity.host'),
-          grunt.option('protocol') || grunt.config('cumulocity.protocol'),
-          grunt.config('cumulocity.port')
-        );
-        return true;
-      });
+    return c8yCredentials.get().then(function (credentials) {
+      c8yServer.init(credentials);
+      return true;
     });
   }
 
   function applicationSave(app) {
-    return cumulocityServer.findApplication(app)
-      .then(cumulocityServer.saveApplication);
+    return c8yServer.findApplication(app)
+      .then(c8yServer.saveApplication);
   }
 
   function pluginSave(plugin) {
-    var pManifest = grunt.template.process([
-        '<%= paths.plugins %>/',
-        plugin.directoryName ,
-        '/cumulocity.json',
-      ].join(''), grunt.config);
-
-    return cumulocityServer.findPlugin(plugin)
-      .then(cumulocityServer.savePlugin)
-      .then(function (_plugin) {
+    return c8yServer.findPlugin(plugin)
+      .then(c8yServer.savePlugin)
+      .then(function () {
         return plugin;
       });
-  }
-
-  function pluginClearId(_plugin) {
-    var manifestPath = grunt.template.process('<%= paths.plugins %>/' + _plugin + '/cumulocity.json');
-
-    if (grunt.file.exists(manifestPath)) {
-      var manifestdata = grunt.file.readJSON(manifestPath);
-      delete manifestdata._id;
-      grunt.file.write(manifestPath, JSON.stringify(manifestdata, null, 2));
-      grunt.log.oklns('Plugin id cleared');
-    } else {
-      grunt.fail.fatal('Plugin ' + _plugin + ' manifest cannot be found');
-    }
   }
 
   function onError(err) {
@@ -115,10 +35,10 @@ module.exports = function (grunt) {
     grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
   }
 
-  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function (appName, optionOrBranch) {
+  grunt.registerTask('c8yAppRegister', 'Task to register and update application', function () {
     var app = grunt.config.get('c8yAppRegister.app'),
       done = this.async();
-    
+
     return checkCredentials().then(function () {
       grunt.log.writeln('Registering ' + app.contextPath + ' application...');
       return applicationSave(app).then(function () {
@@ -127,7 +47,7 @@ module.exports = function (grunt) {
       }, onError);
     }, onError);
   });
-  
+
   grunt.registerTask('appRegister', 'Task to register and update current application for given option and branch', function (option, branch) {
     var appConfig = (grunt.option('manifest') || 'cumulocity') + '.json',
       app;
@@ -157,18 +77,18 @@ module.exports = function (grunt) {
     grunt.config.set('c8yAppRegister', {app: app});
     grunt.task.run('c8yAppRegister:' + app.contextPath + ':' + (branch ? branch : option));
   });
-  
+
   grunt.registerTask('c8yPluginRegister', 'Task to register and update specified plugin', function () {
     var app = grunt.config.get('c8yPluginRegister.app'),
       plugin = grunt.config.get('c8yPluginRegister.plugin'),
       done = this.async();
-      
+
     grunt.log.writeln('Registering ' + app.contextPath + '/' + plugin.directoryName + ' plugin...');
     return checkCredentials()
       .then(function () {
         var appPromise = grunt.config('appPromise.' + app.contextPath);
         if (!appPromise) {
-          appPromise = cumulocityServer.findApplication(app);
+          appPromise = c8yServer.findApplication(app);
           grunt.config('appPromise.' + app.contextPath, appPromise);
         }
         return appPromise;
@@ -213,7 +133,7 @@ module.exports = function (grunt) {
     } else {
       grunt.fail.fatal('Plugin manifest not found in ' + pluginConfig + '.json.');
     }
-    
+
     grunt.config.set('c8yPluginRegister', {app: app, plugin: plugin});
     grunt.task.run('c8yPluginRegister:' + app.contextPath + ':' + pluginName);
   });
