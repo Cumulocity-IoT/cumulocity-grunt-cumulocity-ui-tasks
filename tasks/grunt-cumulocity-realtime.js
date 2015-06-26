@@ -8,14 +8,17 @@ module.exports = function (grunt) {
     c8yCreate = require('../lib/c8yCreate')(grunt),
     c8yRequest = require('../lib/c8yRequest')(grunt);
 
+  var DEFAULT_MIN = 0,
+    DEFAULT_MAX = 100;
+
 
   c8yUtil.registerAsync('realtime:measurements', createMeasurements);
 
   function createMeasurements(credentials, deviceId, fragment, series, min, max) {
     var deferred = Q.defer();
     c8yRequest.setCredentials(credentials);
-    min = Number(min) || 0;
-    max = Number(max) || 100;
+    min = Number(min) || DEFAULT_MIN;
+    max = Number(max) || DEFAULT_MAX;
 
     function createMeasurement() {
       setTimeout(function () {
