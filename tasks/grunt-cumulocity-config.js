@@ -46,6 +46,7 @@ module.exports = function (grunt) {
         }
 
         manifest.__dirname = dirname;
+        manifest.__manifest = path.basename(_path);
         manifest.__port = port++;
         manifest.__isCurrent = currentApp.contextPath === manifest.contextPath;
         plugins.push(readPluginsForApp(manifest));
