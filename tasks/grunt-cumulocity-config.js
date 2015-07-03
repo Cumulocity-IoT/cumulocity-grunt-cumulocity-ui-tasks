@@ -34,7 +34,7 @@ module.exports = function (grunt) {
     appManifests.forEach(function (_path) {
       var manifest = grunt.file.readJSON(_path),
         dirname = path.dirname(_path),
-        exists = _.find(apps, function (app) { return app.contextPath === manifest.contextPath; });
+        exists = _.find(apps, function (app) { return app.contextPath === manifest.contextPath && app.__manifest === manifest.__manifest; });
 
       if (!exists) {
 
