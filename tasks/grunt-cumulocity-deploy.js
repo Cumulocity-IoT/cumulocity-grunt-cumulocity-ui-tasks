@@ -12,6 +12,9 @@ module.exports = function (grunt) {
           resourcesPassword: 'resourcesPassword'
         }
       }
+    },
+    appCfgDefaults = {
+      __manifest: 'cumulocity.json'
     };
   
   function getConfig() {
@@ -29,12 +32,13 @@ module.exports = function (grunt) {
   function getTargetCfgWithDefaults(targetCfg) {
     return _.merge(targetCfgDefaults, targetCfg);
   }
+  
+  function getAppCfgWithDefaults(appCfg) {
+    return _.merge({}, appCfgDefaults, appCfg);
+  }
 
   function getAllApps() {
-    var currentApp = grunt.config('currentlocalapp'),
-      apps = grunt.config('localapps'),
-      allApps = [].concat(apps).concat([currentApp]);
-    return allApps;
+    return grunt.config('localapps');
   }
 
   function getAllPlugins() {
@@ -48,7 +52,7 @@ module.exports = function (grunt) {
 
     if (manifest) {
       manifest = cleanAppManifest(manifest, appCfg, targetCfg);
-      grunt.log.ok('Packed application: ' + appCfg.contextPath);
+      grunt.log.ok('Packed application: ' + appCfg.contextPath + ' (' + appCfg.__manifest + ')');
       _.each(allPlugins, function (plgManifest) {
         if (plgManifest.__rootContextPath.match('^' + appCfg.contextPath + '/')) {
           var pluginManifest = _.clone(plgManifest);
@@ -65,10 +69,20 @@ module.exports = function (grunt) {
   }
   
   function getAppExtendedManifest(appCfg) {
-    var allApps = getAllApps();
-    return _.clone(_.find(allApps, function (a) {
-      return a.contextPath === appCfg.contextPath;
-    }));
+    var allApps = getAllApps(),
+      matchingApps = _.filter(allApps, function (a) {
+        return a.contextPath === appCfg.contextPath && a.__manifest === appCfg.__manifest;
+      });
+
+    if (matchingApps.length === 0) {
+      grunt.fail.fatal('No matching manifests found for app ' + appCfg.contextPath + '!');
+    }
+
+    if (matchingApps.length > 1) {
+      grunt.log.warn('More than one matching manifests found for app ' + appCfg.contextPath + '!');
+    }
+
+    return _.clone(matchingApps[0]);
   }
   
   function cleanAppManifest(manifest, appCfg, targetCfg) {
@@ -134,6 +148,9 @@ module.exports = function (grunt) {
 
     if (grunt.file.exists(path)) {
       config.targetCfg = getTargetCfgWithDefaults(grunt.file.readJSON(path));
+      config.targetCfg.applications = _.map(config.targetCfg.applications, function (appCfg) {
+        return getAppCfgWithDefaults(appCfg);
+      });
       grunt.log.ok('Loaded target config from ' + path + '.');
     } else {
       grunt.fail.fatal('Cannot find target config in ' + path + '!');
