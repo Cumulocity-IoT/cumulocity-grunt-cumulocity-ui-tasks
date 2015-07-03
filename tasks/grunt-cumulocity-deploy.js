@@ -38,10 +38,7 @@ module.exports = function (grunt) {
   }
 
   function getAllApps() {
-    var currentApp = grunt.config('currentlocalapp'),
-      apps = grunt.config('localapps'),
-      allApps = [].concat(apps).concat([currentApp]);
-    return allApps;
+    return grunt.config('localapps');
   }
 
   function getAllPlugins() {
