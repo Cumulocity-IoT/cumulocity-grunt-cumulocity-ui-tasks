@@ -12,6 +12,9 @@ module.exports = function (grunt) {
           resourcesPassword: 'resourcesPassword'
         }
       }
+    },
+    appCfgDefaults = {
+      __manifest: 'cumulocity.json'
     };
   
   function getConfig() {
@@ -28,6 +31,10 @@ module.exports = function (grunt) {
 
   function getTargetCfgWithDefaults(targetCfg) {
     return _.merge(targetCfgDefaults, targetCfg);
+  }
+  
+  function getAppCfgWithDefaults(appCfg) {
+    return _.merge({}, appCfgDefaults, appCfg);
   }
 
   function getAllApps() {
@@ -134,6 +141,9 @@ module.exports = function (grunt) {
 
     if (grunt.file.exists(path)) {
       config.targetCfg = getTargetCfgWithDefaults(grunt.file.readJSON(path));
+      config.targetCfg.applications = _.map(config.targetCfg.applications, function (appCfg) {
+        return getAppCfgWithDefaults(appCfg);
+      });
       grunt.log.ok('Loaded target config from ' + path + '.');
     } else {
       grunt.fail.fatal('Cannot find target config in ' + path + '!');
