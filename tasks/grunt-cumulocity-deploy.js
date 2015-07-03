@@ -52,7 +52,7 @@ module.exports = function (grunt) {
 
     if (manifest) {
       manifest = cleanAppManifest(manifest, appCfg, targetCfg);
-      grunt.log.ok('Packed application: ' + appCfg.contextPath);
+      grunt.log.ok('Packed application: ' + appCfg.contextPath + ' (' + appCfg.__manifest + ')');
       _.each(allPlugins, function (plgManifest) {
         if (plgManifest.__rootContextPath.match('^' + appCfg.contextPath + '/')) {
           var pluginManifest = _.clone(plgManifest);
@@ -69,10 +69,20 @@ module.exports = function (grunt) {
   }
   
   function getAppExtendedManifest(appCfg) {
-    var allApps = getAllApps();
-    return _.clone(_.find(allApps, function (a) {
-      return a.contextPath === appCfg.contextPath;
-    }));
+    var allApps = getAllApps(),
+      matchingApps = _.filter(allApps, function (a) {
+        return a.contextPath === appCfg.contextPath && a.__manifest === appCfg.__manifest;
+      });
+
+    if (matchingApps.length === 0) {
+      grunt.fail.fatal('No matching manifests found for app ' + appCfg.contextPath + '!');
+    }
+
+    if (matchingApps.length > 1) {
+      grunt.log.warn('More than one matching manifests found for app ' + appCfg.contextPath + '!');
+    }
+
+    return _.clone(matchingApps[0]);
   }
   
   function cleanAppManifest(manifest, appCfg, targetCfg) {
