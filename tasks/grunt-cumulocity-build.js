@@ -35,7 +35,7 @@ module.exports = function (grunt) {
   }
 
   function pluginNeedsPrepocessor(p) {
-    return !!p.less;
+    return !!p.less || true;
   }
 
   function preProcess(_plugin) {
@@ -77,6 +77,35 @@ module.exports = function (grunt) {
       });
       tasks.push('less:plugin_' + _plugin);
     }
+
+    // if (true) {
+    //   grunt.config('nggettext_extract.plugin_' + _plugin, {
+    //     files: {
+    //       'po/template2.pot': ['app/scripts/ui/views/*.html']
+    //     }
+    //   });
+    //   // grunt.config('watch.plugin_' + _plugin, {
+    //   //   files: [pluginPath + '**/*.less', pluginPath + '*.less'],
+    //   //   tasks: ['pluginPre:' + _plugin]
+    //   // });
+    //   tasks.push('nggettext_extract:plugin_' + _plugin);
+    // }
+
+    var taskNgGetTextExtract = {
+      task: 'nggettext_extract',
+      target: 'plugin_' + _plugin,
+      outputFile: pluginPath + 'po/template.pot',
+      inputFiles: [
+        pluginPath + '**/*.html',
+        pluginPath + '**/*.js'
+      ],
+      config: {
+        files: {}
+      }
+    };
+    taskNgGetTextExtract.config.files[taskNgGetTextExtract.outputFile] = taskNgGetTextExtract.inputFiles;
+    grunt.config(taskNgGetTextExtract.task + '.' + taskNgGetTextExtract.target, taskNgGetTextExtract.config);
+    tasks.push(taskNgGetTextExtract.task + ':' + taskNgGetTextExtract.target);
 
     if (tasks.length) {
       tasks.forEach(function (t) {
@@ -320,6 +349,15 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-contrib-cssmin');
   grunt.loadNpmTasks('grunt-angular-templates');
   grunt.loadNpmTasks('grunt-contrib-clean');
+  grunt.loadNpmTasks('grunt-angular-gettext');
+  // grunt.config('nggettext_extract', {
+  //   plugin_aclManagement: {
+  //     files: {
+  //
+  //     }
+  //   }
+  // });
+//  grunt.config('nggettext_compile', {});
 
   grunt.config('clean.temp', ['<%= paths.temp %>']);
 
