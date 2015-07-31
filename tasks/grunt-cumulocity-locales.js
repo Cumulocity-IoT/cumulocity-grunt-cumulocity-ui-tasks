@@ -5,6 +5,11 @@ module.exports = function (grunt) {
 
   grunt.loadNpmTasks('grunt-angular-gettext');
 
+  function getCurrentPlugins() {
+    var plugins = grunt.config('localplugins') || [];
+    return _.filter(plugins, '__isCurrent');
+  }
+
   function coreExtractLocalesTemplate() {
     var ngGetTextExtractTask = {
       task: 'nggettext_extract',
@@ -25,6 +30,13 @@ module.exports = function (grunt) {
   }
 
   function pluginExtractLocalesTemplate(pluginContextPath) {
+    if (pluginContextPath === 'all') {
+      _.forEach(getCurrentPlugins(), function (p) {
+        grunt.task.run('extractLocales:' + p.contextPath);
+      });
+      return;
+    }
+
     var pluginPath = '<%= paths.plugins %>/' + pluginContextPath + '/',
       ngGetTextExtractTask = {
         task: 'nggettext_extract',
@@ -44,6 +56,11 @@ module.exports = function (grunt) {
     grunt.task.run(ngGetTextExtractTask.task + ':' + ngGetTextExtractTask.target);
   }
 
-  grunt.registerTask('extractLocales:core', 'Extracts translations from core', coreExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
   grunt.registerTask('extractLocales', 'Extracts translations from plugin', pluginExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesAll', 'Extract locales from core and all plugins', [
+    'readManifests',
+    'extractLocalesCore',
+    'extractLocales:all'
+  ]);
 };
