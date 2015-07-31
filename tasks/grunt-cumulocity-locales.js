@@ -11,10 +11,12 @@ module.exports = function (grunt) {
   }
 
   function coreExtractLocalesTemplate() {
-    var ngGetTextExtractTask = {
-      task: 'nggettext_extract',
-      target: 'core',
-      config: {
+    if (!grunt.file.exists('app/scripts')) {
+      return;
+    }
+
+    var target = 'core',
+      config = {
         files: {
           'app/locales/locales.pot': [
             'app/scripts/ui/**/*.html',
@@ -23,37 +25,77 @@ module.exports = function (grunt) {
             'app/scripts/core/**/*.js'
           ]
         }
-      }
-    };
-    grunt.config(ngGetTextExtractTask.task + '.' + ngGetTextExtractTask.target, ngGetTextExtractTask.config);
-    grunt.task.run(ngGetTextExtractTask.task + ':' + ngGetTextExtractTask.target);
+      };
+
+    extractLocales(target, config);
   }
 
   function pluginExtractLocalesTemplate(pluginContextPath) {
     if (pluginContextPath === 'all') {
-      _.forEach(getCurrentPlugins(), function (p) {
-        grunt.task.run('extractLocales:' + p.contextPath);
-      });
+      runTaskForAllPlugins('extractLocales');
       return;
     }
 
     var pluginPath = '<%= paths.plugins %>/' + pluginContextPath + '/',
-      ngGetTextExtractTask = {
-        task: 'nggettext_extract',
-        target: 'plugin_' + pluginContextPath,
-        outputFile: pluginPath + 'locales/locales.pot',
-        inputFiles: [
-          pluginPath + '**/*.html',
-          pluginPath + '**/*.js'
-        ],
-        config: {
-          files: {}
-        }
+      target = 'plugin_' + pluginContextPath,
+      outputFile = pluginPath + 'locales/locales.pot',
+      inputFiles = [
+        pluginPath + '**/*.html',
+        pluginPath + '**/*.js'
+      ],
+      config = {
+        files: {}
       };
 
-    ngGetTextExtractTask.config.files[ngGetTextExtractTask.outputFile] = ngGetTextExtractTask.inputFiles;
-    grunt.config(ngGetTextExtractTask.task + '.' + ngGetTextExtractTask.target, ngGetTextExtractTask.config);
-    grunt.task.run(ngGetTextExtractTask.task + ':' + ngGetTextExtractTask.target);
+    config.files[outputFile] = inputFiles;
+    extractLocales(target, config);
+  }
+
+  function extractLocales(target, config) {
+    runTaskTargetWithConfig('nggettext_extract', target, config);
+  }
+
+  function coreCompileLocales() {
+    compileLocales('core', 'app/');
+  }
+
+  function pluginCompileLocales(pluginContextPath) {
+    if (pluginContextPath === 'all') {
+      runTaskForAllPlugins('compileLocales');
+      return;
+    }
+    var pluginPath = '<%= paths.plugins %>/' + pluginContextPath + '/';
+    compileLocales('plugin_' + pluginContextPath, pluginPath);
+  }
+
+  function compileLocales(target, path) {
+    var task = 'nggettext_compile',
+      config = {
+        options: {
+          format: 'json'
+        },
+        files: [{
+          expand: true,
+          dot: true,
+          cwd: path + 'locales/po',
+          dest: path + 'locales/json',
+          src: ['*.po'],
+          ext: '.json'
+        }]
+      };
+
+    runTaskTargetWithConfig(task, target, config);
+  }
+
+  function runTaskTargetWithConfig(task, target, config) {
+    grunt.config(task + '.' + target, config);
+    grunt.task.run(task + ':' + target);
+  }
+
+  function runTaskForAllPlugins(taskName) {
+    _.forEach(getCurrentPlugins(), function (p) {
+      grunt.task.run(taskName + ':' + p.contextPath);
+    });
   }
 
   grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
@@ -62,5 +104,13 @@ module.exports = function (grunt) {
     'readManifests',
     'extractLocalesCore',
     'extractLocales:all'
+  ]);
+
+  grunt.registerTask('compileLocalesCore', 'Compiles .po files to .json files in core', coreCompileLocales);
+  grunt.registerTask('compileLocales', 'Compiles .po files to .json files in plugin', pluginCompileLocales);
+  grunt.registerTask('compileLocalesAll', 'Compiles .po files to .json files in core and all plugins', [
+    'readManifests',
+    'compileLocalesCore',
+    'compileLocales:all'
   ]);
 };
