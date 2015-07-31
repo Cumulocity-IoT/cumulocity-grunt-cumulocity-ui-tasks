@@ -3,6 +3,8 @@ var _ = require('lodash');
 module.exports = function (grunt) {
   'use strict';
 
+  grunt.loadNpmTasks('grunt-angular-gettext');
+
   function coreExtractLocalesTemplate() {
     var ngGetTextExtractTask = {
       task: 'nggettext_extract',
