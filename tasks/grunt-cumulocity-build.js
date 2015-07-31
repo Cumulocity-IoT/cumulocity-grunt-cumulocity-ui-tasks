@@ -211,48 +211,57 @@ module.exports = function (grunt) {
       tasks.push(task.join(':'));
     }
 
-    if (plugin.gallery || plugin.copy) {
-      var copy_task = ['copy', 'plugin_' + _plugin],
-        copy_cfg = {files: []};
+    var copy_task = ['copy', 'plugin_' + _plugin],
+      copy_cfg = {files: []};
 
-      if (plugin.gallery) {
-        copy_cfg.files.push({
-          expand: true,
-          dest: '<%= paths.build %>',
-          cwd: '<%= paths.plugins %>',
-          src: [_plugin + '/gallery/**']
-        });
-      }
+    var pluginPath = grunt.template.process('<%= paths.plugins %>/' + _plugin);
+    if (grunt.file.exists(pluginPath + '/locales/json')) {
+      copy_cfg.files.push({
+        expand: true,
+        dest: '<%= paths.build %>',
+        cwd: '<%= paths.plugins %>',
+        src: [_plugin + '/locales/json/*.json']
+      });
+    }
 
-      if (plugin.copy) {
-        plugin.copy.map(function (c) {
-          if (typeof c === 'string') {
-            return {
-              expand: true,
-              cwd: '<%= paths.plugins %>',
-              src: [_plugin + '/' + c],
-              dest: '<%= paths.build %>'
-            };
-          }
+    if (plugin.gallery) {
+      copy_cfg.files.push({
+        expand: true,
+        dest: '<%= paths.build %>',
+        cwd: '<%= paths.plugins %>',
+        src: [_plugin + '/gallery/**']
+      });
+    }
 
-          if (typeof c === 'object') {
-            return {
-              expand: true,
-              cwd: '<%= paths.root %>/' + c.cwd,
-              src: [c.files],
-              dest: '<%= paths.build %>/' + _plugin
-            };
-          }
-        }).forEach(function (c) {
-          copy_cfg.files.push(c);
-        });
-      }
+    if (plugin.copy) {
+      plugin.copy.map(function (c) {
+        if (typeof c === 'string') {
+          return {
+            expand: true,
+            cwd: '<%= paths.plugins %>',
+            src: [_plugin + '/' + c],
+            dest: '<%= paths.build %>'
+          };
+        }
 
+        if (typeof c === 'object') {
+          return {
+            expand: true,
+            cwd: '<%= paths.root %>/' + c.cwd,
+            src: [c.files],
+            dest: '<%= paths.build %>/' + _plugin
+          };
+        }
+      }).forEach(function (c) {
+        copy_cfg.files.push(c);
+      });
+    }
+
+    if (copy_cfg.files.length) {
       grunt.config(copy_task.join('.'), copy_cfg);
       tasks.push(copy_task.join(':'));
     }
 
-    var jsPath = grunt.template.process('<%= paths.build %>/' + _plugin + '/main.js');
     if (plugin.js) {
       tasks.push('pluginReplaceString:' + _plugin);
     }
