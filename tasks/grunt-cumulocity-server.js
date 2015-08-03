@@ -210,11 +210,15 @@ module.exports = function (grunt) {
           };
           return;
 
+        }
+        else if(req.url.match(/json$/) && !grunt.file.exists(_path) && !isTemp) {
+          res.statusCode = 404;
+          res.statusMessage = 'Not found';
+          next();
         } else {
           staticMiddleware = mnt(connect, req.localplugin[dirnameVal]);
           req.url = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, '');
         }
-
       }
 
       return staticMiddleware(req, res, function () {
