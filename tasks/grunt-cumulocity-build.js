@@ -215,6 +215,11 @@ module.exports = function (grunt) {
       copy_cfg = {files: []};
 
     var pluginPath = grunt.template.process('<%= paths.plugins %>/' + _plugin);
+
+    if (grunt.file.exists(pluginPath + '/locales/po')) {
+      tasks.push('compileLocales:' + _plugin);
+    }
+
     if (grunt.file.exists(pluginPath + '/locales/json')) {
       copy_cfg.files.push({
         expand: true,
@@ -335,7 +340,7 @@ module.exports = function (grunt) {
   grunt.registerTask('pluginPre',
     'Preprocesses a plugin',
     preProcess);
-
+    
   grunt.registerTask('pluginBuild',
     'Builds a plugin for deployment',
     buildPlugin);
