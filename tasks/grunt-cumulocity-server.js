@@ -165,7 +165,7 @@ module.exports = function (grunt) {
         res.setHeader('Content-Type', 'text/css');
       }
 
-      //Server local index
+      // Serve local index
       if (isCorePresent() && isIndex(req)) {
         var coreApp = getApp('core');
         req.url = '/index.html';
@@ -173,7 +173,14 @@ module.exports = function (grunt) {
         return staticMiddleware(req, res, next);
       }
 
-      //Serve bower components
+      // Serving angular-i18n locally:
+      if (req.url.match('bower_components/angular-i18n')) {
+        req.url = req.url.replace(/.*bower_components\/angular-i18n/, '');
+        staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components/angular-i18n');
+        return staticMiddleware(req, res, next);
+      }
+
+      // Serve bower components
       if (req.url.match('bower_components')) {
         req.url = req.url.replace(/.*bower_components/, '');
         staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components');
