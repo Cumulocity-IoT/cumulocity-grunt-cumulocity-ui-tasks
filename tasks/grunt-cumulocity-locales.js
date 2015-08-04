@@ -80,7 +80,7 @@ module.exports = function (grunt) {
           expand: true,
           dot: true,
           cwd: srcPath + 'locales/po',
-          dest: destPath + 'locales/json',
+          dest: destPath + 'locales',
           src: ['*.po'],
           ext: '.json'
         }]

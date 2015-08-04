@@ -218,14 +218,11 @@ module.exports = function (grunt) {
 
     if (grunt.file.exists(pluginPath + '/locales/po')) {
       tasks.push('compileLocales:' + _plugin);
-    }
-
-    if (grunt.file.exists(pluginPath + '/locales/json')) {
       copy_cfg.files.push({
         expand: true,
         dest: '<%= paths.build %>',
-        cwd: '<%= paths.plugins %>',
-        src: [_plugin + '/locales/json/*.json']
+        cwd: '<%= paths.temp %>/plugins/',
+        src: [_plugin + '/locales/*.json']
       });
     }
 
