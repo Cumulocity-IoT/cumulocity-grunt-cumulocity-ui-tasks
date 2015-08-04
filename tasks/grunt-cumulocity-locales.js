@@ -56,7 +56,7 @@ module.exports = function (grunt) {
   }
 
   function coreCompileLocales() {
-    compileLocales('core', 'app/');
+    compileLocales('core', 'app/', '<%= paths.temp %>/');
   }
 
   function pluginCompileLocales(pluginContextPath) {
@@ -64,11 +64,13 @@ module.exports = function (grunt) {
       runTaskForAllPlugins('compileLocales');
       return;
     }
-    var pluginPath = '<%= paths.plugins %>/' + pluginContextPath + '/';
-    compileLocales('plugin_' + pluginContextPath, pluginPath);
+    var srcPath = '<%= paths.plugins %>/' + pluginContextPath + '/',
+      destPath = '<%= paths.temp %>/plugins/' + pluginContextPath + '/';
+
+    compileLocales('plugin_' + pluginContextPath, srcPath, destPath);
   }
 
-  function compileLocales(target, path) {
+  function compileLocales(target, srcPath, destPath) {
     var task = 'nggettext_compile',
       config = {
         options: {
@@ -77,8 +79,8 @@ module.exports = function (grunt) {
         files: [{
           expand: true,
           dot: true,
-          cwd: path + 'locales/po',
-          dest: path + 'locales/json',
+          cwd: srcPath + 'locales/po',
+          dest: destPath + 'locales/json',
           src: ['*.po'],
           ext: '.json'
         }]
