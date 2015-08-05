@@ -174,8 +174,8 @@ module.exports = function (grunt) {
       }
 
       // Serving angular-i18n locally:
-      if (req.url.match('bower_components/angular-i18n')) {
-        req.url = req.url.replace(/.*bower_components\/angular-i18n/, '');
+      if (req.url.match('locales/angular')) {
+        req.url = req.url.replace(/.*locales\/angular/, '');
         staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components/angular-i18n');
         return staticMiddleware(req, res, next);
       }
