@@ -165,7 +165,7 @@ module.exports = function (grunt) {
         res.setHeader('Content-Type', 'text/css');
       }
 
-      //Server local index
+      // Serve local index
       if (isCorePresent() && isIndex(req)) {
         var coreApp = getApp('core');
         req.url = '/index.html';
@@ -173,7 +173,14 @@ module.exports = function (grunt) {
         return staticMiddleware(req, res, next);
       }
 
-      //Serve bower components
+      // Serving angular-i18n locally:
+      if (req.url.match('locales/angular')) {
+        req.url = req.url.replace(/.*locales\/angular/, '');
+        staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components/angular-i18n');
+        return staticMiddleware(req, res, next);
+      }
+
+      // Serve bower components
       if (req.url.match('bower_components')) {
         req.url = req.url.replace(/.*bower_components/, '');
         staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components');
@@ -185,12 +192,11 @@ module.exports = function (grunt) {
 
       req.url = req.orig_url.replace('/apps/' + req.localapp.contextPath, '');
       if (req.localplugin) {
-         var file = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, ''),
+        var file = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, ''),
             _path = path.resolve(req.localplugin[dirnameVal] + '/' + file);
 
         if (req.url.match(/(js|html|css)$/) && fs.existsSync(_path)) {
-
-         var stream = fs.createReadStream(_path),
+          var stream = fs.createReadStream(_path),
             res_write = res.write,
             res_end = res.end,
             out = '';
@@ -209,12 +215,16 @@ module.exports = function (grunt) {
             res_end.call(res, _out);
           };
           return;
-
+        } else if (req.url.match(/(json)$/) && !fs.existsSync(_path) && !isTemp) {
+          return staticMiddleware(req, res, function () {
+            res.statusCode = 404;
+            res.statusMessage = 'Not found';
+            next();
+          });
         } else {
           staticMiddleware = mnt(connect, req.localplugin[dirnameVal]);
           req.url = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, '');
         }
-
       }
 
       return staticMiddleware(req, res, function () {

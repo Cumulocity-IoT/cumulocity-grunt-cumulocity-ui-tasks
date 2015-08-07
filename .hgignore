@@ -8,3 +8,4 @@ app/bower_components
 .tar.gz
 nbproject
 libpeerconnection.log
+.editorconfig
