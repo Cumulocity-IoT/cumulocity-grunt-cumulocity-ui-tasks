@@ -163,7 +163,7 @@ module.exports = function (grunt) {
         ngview_task = ['ngtemplates', 'plugin_' + _plugin];
       grunt.config(ngview_task.join('.'),{
         cwd: '<%= paths.plugins %>/' + _plugin + '/',
-        src: ['views/*.html','views/**.html'],
+        src: ['views/*.html','views/**/*.html'],
         dest:'<%= paths.temp%>/plugins/'  + _plugin + '/views.js',
         options: {
           prefix: ['/apps', _app, _plugin, ''].join('/'),
