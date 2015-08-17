@@ -5,9 +5,61 @@ module.exports = function (grunt) {
 
   grunt.loadNpmTasks('grunt-angular-gettext');
 
+  var pluginsPathApp = [],
+    allPlugins;
+
+  function getPluginsPathApp(imports) {
+    _.forEach(imports, function (i) {
+      var plugin = findPlugin(i);
+      if(plugin && !_.contains(pluginsPathApp, plugin.__dirname)) {
+        pluginsPathApp = _.union(pluginsPathApp, buildPluginPath(plugin.__dirname));
+        getPluginsPathApp(plugin.imports);
+      }
+    });
+    return pluginsPathApp;
+  }
+
+  function buildPluginPath(path) {
+    return [
+        path + '/**/*.html',
+        path + '/**/*.js'
+      ]
+  }
+
+  function findPlugin(plugin) {
+    return _.find(allPlugins, function(p) {
+      return plugin === p.__rootContextPath;
+    })
+  }
+
   function getCurrentPlugins() {
     var plugins = grunt.config('localplugins') || [];
     return _.filter(plugins, '__isCurrent');
+  }
+
+  function appExtractLocalesTemplate() {
+    if (grunt.file.exists('app/scripts')) {
+      return;
+    }
+
+    allPlugins = grunt.config('localplugins');
+
+    if (!allPlugins) {
+      grunt.task.run('readManifests');
+      grunt.task.run('appExtractLocalesTemplate');
+      return;
+    }
+
+
+    var currentApp = grunt.file.readJSON('./cumulocity.json'),
+      appImports = currentApp.imports,
+      target = 'app',
+      config = {
+        files: {
+          'locales/locales.pot': getPluginsPathApp(appImports)
+        }
+      };
+    extractLocales(target, config);
   }
 
   function coreExtractLocalesTemplate() {
@@ -99,6 +151,8 @@ module.exports = function (grunt) {
       grunt.task.run(taskName + ':' + p.contextPath);
     });
   }
+
+  grunt.registerTask('appExtractLocalesTemplate', 'Extracts translations from application', appExtractLocalesTemplate);
 
   grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
   grunt.registerTask('extractLocales', 'Extracts translations from plugin', pluginExtractLocalesTemplate);
