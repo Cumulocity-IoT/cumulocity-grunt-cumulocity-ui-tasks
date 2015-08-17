@@ -110,6 +110,7 @@ module.exports = function (grunt) {
         'inventory',
         'user',
         'alarm',
+        'audit',
         'event',
         'devicecontrol',
         'measurement',
