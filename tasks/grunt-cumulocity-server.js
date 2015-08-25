@@ -110,6 +110,7 @@ module.exports = function (grunt) {
         'inventory',
         'user',
         'alarm',
+        'audit',
         'event',
         'devicecontrol',
         'measurement',
@@ -268,7 +269,7 @@ module.exports = function (grunt) {
   }
 
 
-  var port = grunt.option('localPort') || grunt.config('localPort') || 8000;
+  port = grunt.option('localPort') || grunt.config('localPort') || 8000;
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.config('connect', {
     options: {
@@ -279,13 +280,13 @@ module.exports = function (grunt) {
       options: {
         middleware: connectMidlewares
       }
-    },
-    test: {
-      options: {
-        middleware: connectMidlewares,
-        keepalive: false
-      }
-    }
+    }//,
+    // test: {
+    //   options: {
+    //     middleware: connectMidlewares,
+    //     keepalive: false
+    //   }
+    // }
   });
 
 
