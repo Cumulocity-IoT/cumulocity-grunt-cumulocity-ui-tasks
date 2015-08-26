@@ -116,6 +116,8 @@ module.exports = function (grunt) {
         'measurement',
         'identity',
         'application',
+        'retention',
+        'simulator',
         'tenant',
         'cep',
         'apps',
