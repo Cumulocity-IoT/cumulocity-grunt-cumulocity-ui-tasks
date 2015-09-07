@@ -4,17 +4,55 @@ module.exports = function (grunt) {
   var c8yRequest = require('../lib/c8yRequest')(grunt),
     c8yUtil = require('../lib/c8yUtil')(grunt),
     Q = require('q'),
+    JSONPath = require('JSONPath'),
     _ = require('lodash');
 
   grunt.loadNpmTasks('grunt-angular-gettext');
 
-  var pluginsPathApp = [],
-    allPlugins;
+  function getCurrentPlugins() {
+    var plugins = grunt.config('localplugins') || [];
+    return _.filter(plugins, '__isCurrent');
+  }
+
+  function appExtractLocalesTemplate(appContextPath) {
+    var app = grunt.config('currentlocalapp'),
+      dataApp;
+
+    if (!app) {
+      grunt.task.run('readManifests');
+      grunt.task.run('extractLocalesApp' + (appContextPath ? (':' + appContextPath) : ''));
+      return;
+    }
+
+    appContextPath = appContextPath || app.contextPath;
+    app = findApp(appContextPath);
+    dataApp = findApp('c8ydata');
+
+    if (app.contextPath === 'core') {
+      grunt.task.run('extractLocalesCore');
+      return;
+    }
+    
+    if (app.contextPath === 'c8ydata') {
+      grunt.task.run('extractLocalesData');
+      return;
+    }
+
+    var target = 'app',
+      config = {
+        files: {}
+      };
+    
+    config.files[app.__dirname + '/locales/locales.pot'] = getPluginsPathApp(app.imports);
+    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = getPluginsPathApp(app.imports);
+    extractLocales(target, config);
+  }
 
   function getPluginsPathApp(imports) {
+    var pluginsPathApp = [];
     _.forEach(imports, function (i) {
       var plugin = findPlugin(i);
-      if(plugin && !_.contains(pluginsPathApp, plugin.__dirname)) {
+      if (plugin && !_.contains(pluginsPathApp, plugin.__dirname)) {
         pluginsPathApp = _.union(pluginsPathApp, buildPluginPath(plugin.__dirname));
         getPluginsPathApp(plugin.imports);
       }
@@ -30,58 +68,81 @@ module.exports = function (grunt) {
   }
 
   function findPlugin(plugin) {
-    return _.find(allPlugins, function(p) {
+    var plugins = grunt.config('localplugins') || [];
+    return _.find(plugins, function (p) {
       return plugin === p.__rootContextPath;
     });
   }
 
-  function getCurrentPlugins() {
-    var plugins = grunt.config('localplugins') || [];
-    return _.filter(plugins, '__isCurrent');
-  }
-
-  function appExtractLocalesTemplate() {
-    if (grunt.file.exists('app/scripts')) {
-      return;
-    }
-
-    allPlugins = grunt.config('localplugins');
-
-    if (!allPlugins) {
-      grunt.task.run('readManifests');
-      grunt.task.run('appExtractLocalesTemplate');
-      return;
-    }
-
-
-    var currentApp = grunt.file.readJSON('./cumulocity.json'),
-      appImports = currentApp.imports,
-      target = 'app',
-      config = {
-        files: {
-          'locales/locales.pot': getPluginsPathApp(appImports)
-        }
-      };
-    extractLocales(target, config);
+  function findApp(app) {
+    var apps = grunt.config('localapps') || [];
+    return _.find(apps, function (a) {
+      return app === a.contextPath;
+    });
   }
 
   function coreExtractLocalesTemplate() {
-    if (!grunt.file.exists('app/scripts')) {
-      return;
-    }
-
-    var target = 'core',
+    var app = findApp('core'),
+      dataApp = findApp('c8ydata'),
+      target = 'core',
       config = {
-        files: {
-          'app/locales/locales.pot': [
-            'app/scripts/ui/**/*.html',
-            'app/scripts/ui/**/*.js',
-            'app/scripts/core/**/*.html',
-            'app/scripts/core/**/*.js'
-          ]
-        }
+        files: {}
+      },
+      coreFiles = [
+        app.__dirname + '/scripts/core/**/*.html',
+        app.__dirname + '/scripts/core/**/*.js',
+        app.__dirname + '/scripts/ui/**/*.html',
+        app.__dirname + '/scripts/ui/**/*.js'
+      ];
+
+    config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
+    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+    extractLocales(target, config);
+  }
+
+  function c8ydataExtractLocalesTemplate() {
+    var app = findApp('c8ydata'),
+      target = 'c8ydata',
+      filesAndJsonPaths = {
+        'smartrules/rules.json': [
+          '$..label.[input,output]',
+          '$..description',
+          '$..category',
+          '$..paramGroups[input,output].label',
+          '$..paramGroups[input,output].params[label,default]',
+          '$..paramGroups[input,output].label',
+          '$..paramGroups[input,output].params.stepTypes[label,default]'
+        ],
+        'devicecommands/*.json': [
+          '$.name',
+          '$.templates..[name,category]'
+        ],
+        'properties/schema.json': [
+          '$..title'
+        ]
+      },
+      config = {
+        files: {}
       };
 
+    _.each(filesAndJsonPaths, function (jsonPaths, filePattern) {
+      var files = grunt.file.expand(app.__dirname + '/' + filePattern);
+      _.each(files, function (file) {
+        var obj = grunt.file.readJSON(file),
+          gettextJs = '';
+
+        _.each(jsonPaths, function (jsonPath) {
+          var txts = JSONPath.eval(obj, jsonPath);
+          _.each(txts, function (txt) {
+            gettextJs += 'gettext(\'' + txt + '\');\n';
+          });
+        });
+        grunt.file.write(app.__dirnameTemp + '/locales/' + file.substr(0, app.__dirname.length + 1), gettextJs);
+        
+      });
+    });
+
+    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = [app.__dirnameTemp + '/gettext.js'];
     extractLocales(target, config);
   }
 
@@ -278,10 +339,11 @@ module.exports = function (grunt) {
     return Q.all(promises);
   }
 
-  grunt.registerTask('appExtractLocalesTemplate', 'Extracts translations from application', appExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesApp', 'Extracts translations from specified application', appExtractLocalesTemplate);
 
   grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
-  grunt.registerTask('extractLocales', 'Extracts translations from plugin', pluginExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesData', 'Extracts translations from c8ydata', c8ydataExtractLocalesTemplate);
+  grunt.registerTask('extractLocales', 'Extracts translations from specified plugin', pluginExtractLocalesTemplate);
   grunt.registerTask('extractLocalesAll', 'Extract locales from core and all plugins', [
     'readManifests',
     'extractLocalesCore',
