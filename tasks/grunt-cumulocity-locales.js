@@ -116,10 +116,10 @@ module.exports = function (grunt) {
         'devicecommands/*.json': [
           '$.name',
           '$.templates..[name,category]'
-        ],
-        'properties/schema.json': [
-          '$..title'
         ]
+//        'properties/schema.json': [
+//          '$..title'
+//        ]
       },
       config = {
         files: {}
