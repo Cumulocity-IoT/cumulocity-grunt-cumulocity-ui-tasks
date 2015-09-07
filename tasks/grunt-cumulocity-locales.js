@@ -269,9 +269,11 @@ module.exports = function (grunt) {
       app = existingAppManifest;
       delete app.manifest;
     }
-    if (originalAppContextPath !== 'core') {
+    if (originalAppContextPath !== 'core' && originalAppContextPath !== 'c8ydata') {
       addImport(app.imports, baseManifest.contextPath, 'i18n-core');
       appsWithI18n.push('core');
+      addImport(app.imports, baseManifest.contextPath, 'i18n-c8ydata');
+      appsWithI18n.push('c8ydata');
     }
     addImport(app.imports, baseManifest.contextPath, 'i18n-' + originalAppContextPath);
     appsWithI18n.push(originalAppContextPath);
