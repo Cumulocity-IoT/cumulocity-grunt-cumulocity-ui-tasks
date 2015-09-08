@@ -116,10 +116,10 @@ module.exports = function (grunt) {
         'devicecommands/*.json': [
           '$.name',
           '$.templates..[name,category]'
+        ],
+        'properties/schema.json': [
+          '$..title'
         ]
-//        'properties/schema.json': [
-//          '$..title'
-//        ]
       },
       config = {
         files: {}
@@ -225,7 +225,10 @@ module.exports = function (grunt) {
     return c8yRequest.get('application/applications?pageSize=1000')
       .then(_.partial(findAppByContextPath, appContextPath))
       .then(copyOrUpdateManifest)
-      .then(_.partialRight(createOrUpdateI18nPlugins, languageCodePO));
+      .then(_.partialRight(createOrUpdateI18nPlugins, languageCodePO))
+      .catch(function (err) {
+        grunt.log.fail('Could not setup application for translation! Status code: ' + err.statusCode);
+      });
   }
 
   function findAppByContextPath(contextPath, apps) {
