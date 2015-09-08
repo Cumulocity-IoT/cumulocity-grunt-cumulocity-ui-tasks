@@ -1,6 +1,6 @@
 {
   "name": "grunt-cumulocity-ui-tasks",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "Grunt tasks for cumulocity UI platform",
   "author": "Cumulocity, GmbH",
   "license": "MIT",
@@ -15,7 +15,8 @@
     "moment": "^2.10.3",
     "q": "^1.0.1",
     "request": "^2.36.0",
-    "shelljs": "^0.5.0"
+    "shelljs": "^0.5.0",
+    "JSONPath": "^0.10.0"
   },
   "peerDependencies": {
     "grunt-contrib-clean": "^0.5.0",
