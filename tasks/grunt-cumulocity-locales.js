@@ -48,16 +48,19 @@ module.exports = function (grunt) {
     extractLocales(target, config);
   }
 
-  function getPluginsPathApp(imports) {
-    var pluginsPathApp = [];
+  function getPluginsPathApp(imports, pluginsPathApp, loadedPlugins) {
+    var pluginsPathApp = pluginsPathApp || [],
+      loadedPlugins = loadedPlugins || [];
+
     _.forEach(imports, function (i) {
       var plugin = findPlugin(i);
-      if (plugin && !_.contains(pluginsPathApp, plugin.__dirname)) {
-        pluginsPathApp = _.union(pluginsPathApp, buildPluginPath(plugin.__dirname));
-        getPluginsPathApp(plugin.imports);
+      if (plugin && !_.contains(loadedPlugins, i)) {
+        pluginsPathApp.push(buildPluginPath(plugin.__dirname));
+        loadedPlugins.push(i);
+        getPluginsPathApp(plugin.imports, pluginsPathApp, loadedPlugins);
       }
     });
-    return pluginsPathApp;
+    return _.flatten(pluginsPathApp);
   }
 
   function buildPluginPath(path) {
@@ -74,10 +77,10 @@ module.exports = function (grunt) {
     });
   }
 
-  function findApp(app) {
+  function findApp(app, manifestPath) {
     var apps = grunt.config('localapps') || [];
     return _.find(apps, function (a) {
-      return app === a.contextPath;
+      return app === a.contextPath && a.__manifest === (manifestPath || 'cumulocity.json');
     });
   }
 
@@ -95,7 +98,7 @@ module.exports = function (grunt) {
         app.__dirname + '/scripts/ui/**/*.js'
       ];
 
-    config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
+    config.files[app.__dirname + '/../locales/locales.pot'] = coreFiles;
     config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
     extractLocales(target, config);
   }
@@ -123,7 +126,8 @@ module.exports = function (grunt) {
       },
       config = {
         files: {}
-      };
+      },
+      gettextJsFiles = [];
 
     _.each(filesAndJsonPaths, function (jsonPaths, filePattern) {
       var files = grunt.file.expand(app.__dirname + '/' + filePattern);
@@ -137,12 +141,14 @@ module.exports = function (grunt) {
             gettextJs += 'gettext(\'' + txt + '\');\n';
           });
         });
-        grunt.file.write(app.__dirnameTemp + '/locales/' + file.substr(0, app.__dirname.length + 1), gettextJs);
-        
+        var gettextJsFilePath = app.__dirnameTemp + '/locales/' + file.substr(app.__dirname.length + 1);
+        gettextJsFilePath = gettextJsFilePath.substr(0, gettextJsFilePath.length-2);
+        grunt.file.write(gettextJsFilePath, gettextJs);
+        gettextJsFiles.push(gettextJsFilePath);
       });
     });
 
-    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = [app.__dirnameTemp + '/gettext.js'];
+    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = gettextJsFiles;
     extractLocales(target, config);
   }
 
