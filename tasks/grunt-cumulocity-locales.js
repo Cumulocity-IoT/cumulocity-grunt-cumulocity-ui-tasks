@@ -39,35 +39,19 @@ module.exports = function (grunt) {
     }
 
     var target = 'app',
+      pluginsFiles = [
+        app.__dirname + '/plugins/**/*.html',
+        app.__dirname + '/plugins/**/*.js'
+      ],
       config = {
         files: {}
       };
-    
-    config.files[app.__dirname + '/locales/locales.pot'] = getPluginsPathApp(app.imports);
-    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = getPluginsPathApp(app.imports);
+
+    config.files[app.__dirname + '/locales/locales.pot'] = pluginsFiles;
+    if (dataApp) {
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = pluginsFiles;
+    }
     extractLocales(target, config);
-  }
-
-  function getPluginsPathApp(imports, pluginsPathApp, loadedPlugins) {
-    var pluginsPathApp = pluginsPathApp || [],
-      loadedPlugins = loadedPlugins || [];
-
-    _.forEach(imports, function (i) {
-      var plugin = findPlugin(i);
-      if (plugin && !_.contains(loadedPlugins, i)) {
-        pluginsPathApp.push(buildPluginPath(plugin.__dirname));
-        loadedPlugins.push(i);
-        getPluginsPathApp(plugin.imports, pluginsPathApp, loadedPlugins);
-      }
-    });
-    return _.flatten(pluginsPathApp);
-  }
-
-  function buildPluginPath(path) {
-    return [
-      path + '/**/*.html',
-      path + '/**/*.js'
-    ];
   }
 
   function findPlugin(plugin) {
@@ -95,7 +79,9 @@ module.exports = function (grunt) {
         app.__dirname + '/scripts/core/**/*.html',
         app.__dirname + '/scripts/core/**/*.js',
         app.__dirname + '/scripts/ui/**/*.html',
-        app.__dirname + '/scripts/ui/**/*.js'
+        app.__dirname + '/scripts/ui/**/*.js',
+        app.__dirname + '/plugins/**/*.html',
+        app.__dirname + '/plugins/**/*.js'
       ];
 
     config.files[app.__dirname + '/../locales/locales.pot'] = coreFiles;
