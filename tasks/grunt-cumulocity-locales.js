@@ -217,9 +217,12 @@ module.exports = function (grunt) {
     return c8yRequest.get('application/applications?pageSize=1000')
       .then(_.partial(findAppByContextPath, appContextPath))
       .then(copyOrUpdateManifest)
-      .then(_.partialRight(createOrUpdateI18nPlugins, languageCodePO))
+      .then(createOrUpdateI18nPlugins)
       .catch(function (err) {
-        grunt.log.fail('Could not setup application for translation! Status code: ' + err.statusCode);
+        grunt.log.fail('Could not setup application for translation!');
+        if (err.statusCode) {
+          grunt.log.fail('Status code: ' + err.statusCode);
+        }
       });
   }
 
@@ -264,20 +267,30 @@ module.exports = function (grunt) {
       app = existingAppManifest;
       delete app.manifest;
     }
-    if (originalAppContextPath !== 'core' && originalAppContextPath !== 'c8ydata') {
-      addImport(app.imports, baseManifest.contextPath, 'i18n-core');
-      appsWithI18n.push('core');
-      addImport(app.imports, baseManifest.contextPath, 'i18n-c8ydata');
-      appsWithI18n.push('c8ydata');
-    }
-    addImport(app.imports, baseManifest.contextPath, 'i18n-' + originalAppContextPath);
-    appsWithI18n.push(originalAppContextPath);
+    appsWithI18n = getAppsWithI18N(app, originalAppContextPath);
+    _.each(appsWithI18n, function (a) {
+      addImport(app.imports, baseManifest.contextPath, 'i18n-' + a);
+    });
+
     grunt.file.write(existingAppManifestPath, JSON.stringify(app, null, 2));
     if (!_.isEqual(originalAppManifest, app)) {
       grunt.log.warn('Note: Updated manifest for ' + app.contextPath + ' app!');
       grunt.log.warn('You will need to register it.');
     }
     return appsWithI18n;
+  }
+
+  function getAppsWithI18N(app, originalAppContextPath) {
+    var appsWithI18n = [];
+    if (originalAppContextPath !== 'core') appsWithI18n.push('core');
+    if (originalAppContextPath !== 'c8ydata') appsWithI18n.push('c8ydata');
+    _.each(app.imports, function (appPlugin) {
+      var matches = appPlugin.match(/^(.+)\/(.+)$/),
+        appContextPath = matches[1];
+      appsWithI18n.push(appContextPath);
+    });
+    appsWithI18n.push(originalAppContextPath);
+    return _.unique(appsWithI18n);
   }
 
   function addImport(imports, app, plugin) {
