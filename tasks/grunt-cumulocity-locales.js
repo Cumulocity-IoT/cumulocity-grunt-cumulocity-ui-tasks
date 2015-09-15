@@ -15,6 +15,16 @@ module.exports = function (grunt) {
   }
 
   function appExtractLocalesTemplate(appContextPath) {
+    var i18nIgnoredPlugins = {
+      devicemanagement: [
+        'home_dt'
+      ],
+      cockpit: [
+        'durkopp_adler',
+        'home_dt_cebit',
+        'kumpan'
+      ]
+    };
     var app = grunt.config('currentlocalapp'),
       dataApp;
 
@@ -46,6 +56,11 @@ module.exports = function (grunt) {
       config = {
         files: {}
       };
+
+    _.each(i18nIgnoredPlugins[app.contextPath] || [], function (ignoredPluginName) {
+      pluginsFiles.push('!' + app.__dirname + '/plugins/' + ignoredPluginName + '/**/*.html');
+      pluginsFiles.push('!' + app.__dirname + '/plugins/' + ignoredPluginName + '/**/*.js');
+    });
 
     config.files[app.__dirname + '/locales/locales.pot'] = pluginsFiles;
     if (dataApp) {
