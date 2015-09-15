@@ -84,7 +84,7 @@ module.exports = function (grunt) {
         app.__dirname + '/plugins/**/*.js'
       ];
 
-    config.files[app.__dirname + '/../locales/locales.pot'] = coreFiles;
+    config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
     config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
     extractLocales(target, config);
   }
