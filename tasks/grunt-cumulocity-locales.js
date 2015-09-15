@@ -365,6 +365,14 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('extractLocalesApp', 'Extracts translations from specified application', appExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesAppAll', 'Extract locales from all applications', [
+    'extractLocalesApp:core',
+    'extractLocalesApp:c8ydata',
+    'extractLocalesApp:platformadmin',
+    'extractLocalesApp:administration',
+    'extractLocalesApp:devicemanagement',
+    'extractLocalesApp:cockpit'
+  ]);
 
   grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
   grunt.registerTask('extractLocalesData', 'Extracts translations from c8ydata', c8ydataExtractLocalesTemplate);
