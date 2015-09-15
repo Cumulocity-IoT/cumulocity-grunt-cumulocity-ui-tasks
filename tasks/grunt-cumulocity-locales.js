@@ -100,7 +100,9 @@ module.exports = function (grunt) {
       ];
 
     config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
-    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+    if (dataApp) {
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+    }
     extractLocales(target, config);
   }
 
