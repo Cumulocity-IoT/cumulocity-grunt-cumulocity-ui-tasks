@@ -15,6 +15,16 @@ module.exports = function (grunt) {
   }
 
   function appExtractLocalesTemplate(appContextPath) {
+    var i18nIgnoredPlugins = {
+      devicemanagement: [
+        'home_dt'
+      ],
+      cockpit: [
+        'durkopp_adler',
+        'home_dt_cebit',
+        'kumpan'
+      ]
+    };
     var app = grunt.config('currentlocalapp'),
       dataApp;
 
@@ -39,32 +49,24 @@ module.exports = function (grunt) {
     }
 
     var target = 'app',
+      pluginsFiles = [
+        app.__dirname + '/plugins/**/*.html',
+        app.__dirname + '/plugins/**/*.js'
+      ],
       config = {
         files: {}
       };
-    
-    config.files[app.__dirname + '/locales/locales.pot'] = getPluginsPathApp(app.imports);
-    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = getPluginsPathApp(app.imports);
-    extractLocales(target, config);
-  }
 
-  function getPluginsPathApp(imports) {
-    var pluginsPathApp = [];
-    _.forEach(imports, function (i) {
-      var plugin = findPlugin(i);
-      if (plugin && !_.contains(pluginsPathApp, plugin.__dirname)) {
-        pluginsPathApp = _.union(pluginsPathApp, buildPluginPath(plugin.__dirname));
-        getPluginsPathApp(plugin.imports);
-      }
+    _.each(i18nIgnoredPlugins[app.contextPath] || [], function (ignoredPluginName) {
+      pluginsFiles.push('!' + app.__dirname + '/plugins/' + ignoredPluginName + '/**/*.html');
+      pluginsFiles.push('!' + app.__dirname + '/plugins/' + ignoredPluginName + '/**/*.js');
     });
-    return pluginsPathApp;
-  }
 
-  function buildPluginPath(path) {
-    return [
-      path + '/**/*.html',
-      path + '/**/*.js'
-    ];
+    config.files[app.__dirname + '/locales/locales.pot'] = pluginsFiles;
+    if (dataApp) {
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = pluginsFiles;
+    }
+    extractLocales(target, config);
   }
 
   function findPlugin(plugin) {
@@ -74,10 +76,10 @@ module.exports = function (grunt) {
     });
   }
 
-  function findApp(app) {
+  function findApp(app, manifestPath) {
     var apps = grunt.config('localapps') || [];
     return _.find(apps, function (a) {
-      return app === a.contextPath;
+      return app === a.contextPath && a.__manifest === (manifestPath || 'cumulocity.json');
     });
   }
 
@@ -92,11 +94,15 @@ module.exports = function (grunt) {
         app.__dirname + '/scripts/core/**/*.html',
         app.__dirname + '/scripts/core/**/*.js',
         app.__dirname + '/scripts/ui/**/*.html',
-        app.__dirname + '/scripts/ui/**/*.js'
+        app.__dirname + '/scripts/ui/**/*.js',
+        app.__dirname + '/plugins/**/*.html',
+        app.__dirname + '/plugins/**/*.js'
       ];
 
     config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
-    config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+    if (dataApp) {
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+    }
     extractLocales(target, config);
   }
 
@@ -123,7 +129,8 @@ module.exports = function (grunt) {
       },
       config = {
         files: {}
-      };
+      },
+      gettextJsFiles = [];
 
     _.each(filesAndJsonPaths, function (jsonPaths, filePattern) {
       var files = grunt.file.expand(app.__dirname + '/' + filePattern);
@@ -137,12 +144,14 @@ module.exports = function (grunt) {
             gettextJs += 'gettext(\'' + txt + '\');\n';
           });
         });
-        grunt.file.write(app.__dirnameTemp + '/locales/' + file.substr(0, app.__dirname.length + 1), gettextJs);
-        
+        var gettextJsFilePath = app.__dirnameTemp + '/locales/' + file.substr(app.__dirname.length + 1);
+        gettextJsFilePath = gettextJsFilePath.substr(0, gettextJsFilePath.length-2);
+        grunt.file.write(gettextJsFilePath, gettextJs);
+        gettextJsFiles.push(gettextJsFilePath);
       });
     });
 
-    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = [app.__dirnameTemp + '/gettext.js'];
+    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = gettextJsFiles;
     extractLocales(target, config);
   }
 
@@ -225,9 +234,12 @@ module.exports = function (grunt) {
     return c8yRequest.get('application/applications?pageSize=1000')
       .then(_.partial(findAppByContextPath, appContextPath))
       .then(copyOrUpdateManifest)
-      .then(_.partialRight(createOrUpdateI18nPlugins, languageCodePO))
+      .then(createOrUpdateI18nPlugins)
       .catch(function (err) {
-        grunt.log.fail('Could not setup application for translation! Status code: ' + err.statusCode);
+        grunt.log.fail('Could not setup application for translation!');
+        if (err.statusCode) {
+          grunt.log.fail('Status code: ' + err.statusCode);
+        }
       });
   }
 
@@ -272,20 +284,30 @@ module.exports = function (grunt) {
       app = existingAppManifest;
       delete app.manifest;
     }
-    if (originalAppContextPath !== 'core' && originalAppContextPath !== 'c8ydata') {
-      addImport(app.imports, baseManifest.contextPath, 'i18n-core');
-      appsWithI18n.push('core');
-      addImport(app.imports, baseManifest.contextPath, 'i18n-c8ydata');
-      appsWithI18n.push('c8ydata');
-    }
-    addImport(app.imports, baseManifest.contextPath, 'i18n-' + originalAppContextPath);
-    appsWithI18n.push(originalAppContextPath);
+    appsWithI18n = getAppsWithI18N(app, originalAppContextPath);
+    _.each(appsWithI18n, function (a) {
+      addImport(app.imports, baseManifest.contextPath, 'i18n-' + a);
+    });
+
     grunt.file.write(existingAppManifestPath, JSON.stringify(app, null, 2));
     if (!_.isEqual(originalAppManifest, app)) {
       grunt.log.warn('Note: Updated manifest for ' + app.contextPath + ' app!');
       grunt.log.warn('You will need to register it.');
     }
     return appsWithI18n;
+  }
+
+  function getAppsWithI18N(app, originalAppContextPath) {
+    var appsWithI18n = [];
+    if (originalAppContextPath !== 'core') appsWithI18n.push('core');
+    if (originalAppContextPath !== 'c8ydata') appsWithI18n.push('c8ydata');
+    _.each(app.imports, function (appPlugin) {
+      var matches = appPlugin.match(/^(.+)\/(.+)$/),
+        appContextPath = matches[1];
+      appsWithI18n.push(appContextPath);
+    });
+    appsWithI18n.push(originalAppContextPath);
+    return _.unique(appsWithI18n);
   }
 
   function addImport(imports, app, plugin) {
@@ -345,6 +367,14 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('extractLocalesApp', 'Extracts translations from specified application', appExtractLocalesTemplate);
+  grunt.registerTask('extractLocalesAppAll', 'Extract locales from all applications', [
+    'extractLocalesApp:core',
+    'extractLocalesApp:c8ydata',
+    'extractLocalesApp:platformadmin',
+    'extractLocalesApp:administration',
+    'extractLocalesApp:devicemanagement',
+    'extractLocalesApp:cockpit'
+  ]);
 
   grunt.registerTask('extractLocalesCore', 'Extracts translations from core', coreExtractLocalesTemplate);
   grunt.registerTask('extractLocalesData', 'Extracts translations from c8ydata', c8ydataExtractLocalesTemplate);
