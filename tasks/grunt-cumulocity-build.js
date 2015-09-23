@@ -335,21 +335,21 @@ module.exports = function (grunt) {
   grunt.config('clean.temp', ['<%= paths.temp %>']);
 
   grunt.loadNpmTasks('grunt-contrib-compress');
+  grunt.config.set('compress', {
+    build: {
+      options: {
+        archive: 'deploy/zips/core/build.zip'
+      },
+      files: [{
+        expand: true,
+        src: 'build/**/*'
+      }]
+    }
+  });
+
 
   grunt.registerTask('zipBuild', function () {
-    grunt.config.set('compress', {
-      build: {
-        options: {
-          archive: 'build.zip'
-        },
-        files: [{
-          expand: true,
-          cwd: 'build/',
-          src: '**/*'
-        }]
-      }
-    });
-    grunt.task.run('compress:build');
+    grunt.task.run('compress');
   });
 
   grunt.registerTask('pluginPre',

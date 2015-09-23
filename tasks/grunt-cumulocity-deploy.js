@@ -136,6 +136,7 @@ module.exports = function (grunt) {
   grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
+    'c8yDeployUI:zipBuilds',
     'c8yDeployUI:hgPullUpdate',
     'readManifests',
     'c8yDeployUI:prepareManifestsPack',
@@ -157,6 +158,32 @@ module.exports = function (grunt) {
     }
 
     setConfig(config);
+  });
+
+  grunt.registerTask('c8yDeployUI:zipBuilds', function () {
+    var config = getConfig();
+    // grunt-contrib-compress config, default values are in
+    // grunt-cumulocity-build.js, search for "grunt.config.set('compress"
+    var compressConf = grunt.config('compress');
+    var buildConf = compressConf.build;
+    // run compress for default values (core)
+    grunt.task.run('compress');
+    // Go through apps
+    _.each(config.targetCfg.applications, function (appCfg) {
+      var cfg = getAppExtendedManifest(appCfg);
+      if (cfg.contextPath === 'core') { return; }
+      // clone default conf, set it up
+      var newConf = _.cloneDeep(buildConf);
+      if (cfg.contextPath === 'c8ydata') {
+        newConf.files[0].src = '**/*';
+      }
+      newConf.options.archive = ['deploy', 'zips', cfg.contextPath, 'build.zip'].join('/');
+      newConf.files[0].cwd = cfg.__dirname + '/';
+      //add new conf to compress config
+      compressConf[cfg.contextPath] = newConf;
+    });
+    grunt.config.set('compress', compressConf);
+    grunt.task.run('compress');
   });
 
   grunt.registerTask('c8yDeployUI:hgPullUpdate', 'Updates all required repositories to required branches or tags', function () {
@@ -294,4 +321,15 @@ module.exports = function (grunt) {
     grunt.config.set('c8yPluginRegister', {app: appManifest, plugin: pluginManifest});
     grunt.task.run('c8yPluginRegister');
   });
+
+  grunt.registerTask('c8yDeployUI:uploadZip', function () {
+    grunt.log.ok('ziiiiip');
+  });
+
+  grunt.registerTask('c8yDeployUI:buildAndUpload', [
+    'zipBuild',
+    'c8yDeployUI:uploadZip'
+  ]);
+
+  grunt.registerTask('deploy:buildAndUpload', 'c8yDeployUI:buildAndUpload');
 };
