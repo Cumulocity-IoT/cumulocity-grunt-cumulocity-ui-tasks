@@ -334,10 +334,28 @@ module.exports = function (grunt) {
 
   grunt.config('clean.temp', ['<%= paths.temp %>']);
 
+  grunt.loadNpmTasks('grunt-contrib-compress');
+
+  grunt.registerTask('zipBuild', function () {
+    grunt.config.set('compress', {
+      build: {
+        options: {
+          archive: 'build.zip'
+        },
+        files: [{
+          expand: true,
+          cwd: 'build/',
+          src: '**/*'
+        }]
+      }
+    });
+    grunt.task.run('compress:build');
+  });
+
   grunt.registerTask('pluginPre',
     'Preprocesses a plugin',
     preProcess);
-    
+
   grunt.registerTask('pluginBuild',
     'Builds a plugin for deployment',
     buildPlugin);
