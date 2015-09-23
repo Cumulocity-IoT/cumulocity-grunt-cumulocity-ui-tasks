@@ -261,6 +261,7 @@ module.exports = function (grunt) {
     _.each(apps, function (app) {
       var appManifest = app.manifest;
       grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports');
+      grunt.task.run('uploadZip');
       _.each(app.plugins, function (plugin) {
         grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
       });
@@ -277,6 +278,13 @@ module.exports = function (grunt) {
         grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
       }
     });
+  });
+
+  grunt.registerTask('c8yDeployUI:uploadZip', 'Uploads zip files to the platform', function () {
+    var appCfg = grunt.config.get('c8yAppRegister');
+    var app = appCfg.manifest;
+    var appId = appCfg.appId;
+    // Make request
   });
 
   grunt.registerTask('c8yDeployUI:appRegister', 'Register app from manifests pack', function (appContextPath, option) {
@@ -298,7 +306,7 @@ module.exports = function (grunt) {
       appManifest.resourcesPassword = config.appManifests.resourcesPassword;
     }
 
-    grunt.config.set('c8yAppRegister', {app: appManifest});
+    grunt.config.set('c8yAppRegister', {app: app.manifest});
     grunt.task.run('c8yAppRegister');
   });
 
