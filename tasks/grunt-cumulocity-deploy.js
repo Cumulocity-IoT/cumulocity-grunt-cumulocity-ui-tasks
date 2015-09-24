@@ -1,8 +1,13 @@
-var _ = require('lodash'),
-  shell = require('shelljs');
+var _ = require('lodash');
+var shell = require('shelljs');
+var fs = require('fs');
+var path = require('path');
 
 module.exports = function (grunt) {
   'use strict';
+
+  var c8yUtil = require('../lib/c8yUtil')(grunt);
+  var c8yRequest = require('../lib/c8yRequest')(grunt);
 
   var configKey = 'c8yDeployUI',
     targetCfgDefaults = {
@@ -260,8 +265,12 @@ module.exports = function (grunt) {
 
     _.each(apps, function (app) {
       var appManifest = app.manifest;
-      grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports');
-      grunt.task.run('uploadZip');
+      grunt.task.run(
+        'c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports',
+        'c8yDeployUI:uploadZip'
+      );
+      // grunt.task.run('c8yDeployUI:uploadZip');
+      grunt.log.ok('Uploaded build.zip for: ' + appManifest.contextPath);
       _.each(app.plugins, function (plugin) {
         grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
       });
@@ -280,11 +289,15 @@ module.exports = function (grunt) {
     });
   });
 
-  grunt.registerTask('c8yDeployUI:uploadZip', 'Uploads zip files to the platform', function () {
+  c8yUtil.registerAsync('c8yDeployUI:uploadZip', function () {
     var appCfg = grunt.config.get('c8yAppRegister');
-    var app = appCfg.manifest;
+    var app = appCfg.app;
     var appId = appCfg.appId;
-    // Make request
+    grunt.log.debug(app.contextPath);
+    grunt.log.debug(appId);
+    var fileStream = fs.createReadStream(path.resolve(['zips', app.contextPath, 'build.zip'].join('/')));
+    var uriPath = ['application/applications/', appId, '/binaries/'].join('');
+    return c8yRequest.upload(fileStream, uriPath);
   });
 
   grunt.registerTask('c8yDeployUI:appRegister', 'Register app from manifests pack', function (appContextPath, option) {
@@ -329,15 +342,4 @@ module.exports = function (grunt) {
     grunt.config.set('c8yPluginRegister', {app: appManifest, plugin: pluginManifest});
     grunt.task.run('c8yPluginRegister');
   });
-
-  grunt.registerTask('c8yDeployUI:uploadZip', function () {
-    grunt.log.ok('ziiiiip');
-  });
-
-  grunt.registerTask('c8yDeployUI:buildAndUpload', [
-    'zipBuild',
-    'c8yDeployUI:uploadZip'
-  ]);
-
-  grunt.registerTask('deploy:buildAndUpload', 'c8yDeployUI:buildAndUpload');
 };
