@@ -342,7 +342,9 @@ module.exports = function (grunt) {
       },
       files: [{
         expand: true,
-        src: 'build/**/*'
+        src: '**/*',
+        dest: 'm2m/',
+        cwd: 'build/'
       }]
     }
   });

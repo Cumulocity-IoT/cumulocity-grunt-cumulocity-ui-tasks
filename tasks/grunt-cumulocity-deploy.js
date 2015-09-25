@@ -108,7 +108,8 @@ module.exports = function (grunt) {
       });
     }
     if (appCfg.branch) {
-      manifest.resourcesUrl = manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
+      manifest.resourcesUrl = '/m2m/' + appCfg.contextPath;
+      // manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
     }
     _.each(manifest, function (val,  key) {
       if (key.match('^__')) {
@@ -179,11 +180,13 @@ module.exports = function (grunt) {
       if (cfg.contextPath === 'core') { return; }
       // clone default conf, set it up
       var newConf = _.cloneDeep(buildConf);
-      if (cfg.contextPath === 'c8ydata') {
-        newConf.files[0].src = '**/*';
-      }
       newConf.options.archive = ['deploy', 'zips', cfg.contextPath, 'build.zip'].join('/');
-      newConf.files[0].cwd = cfg.__dirname + '/';
+      if (cfg.contextPath === 'c8ydata') {
+        newConf.files[0].cwd = cfg.__dirname + '/';
+      }
+      else {
+        newConf.files[0].cwd = cfg.__dirname + '/build/';
+      }
       //add new conf to compress config
       compressConf[cfg.contextPath] = newConf;
     });
@@ -271,22 +274,22 @@ module.exports = function (grunt) {
       );
       // grunt.task.run('c8yDeployUI:uploadZip');
       grunt.log.ok('Uploaded build.zip for: ' + appManifest.contextPath);
-      _.each(app.plugins, function (plugin) {
-        grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
-      });
+      // _.each(app.plugins, function (plugin) {
+      //   grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
+      // });
     });
 
-    _.each(apps, function (app) {
-      var appManifest = app.manifest;
-      _.each(app.plugins, function (plugin) {
-        if (plugin.imports && plugin.imports.length) {
-          grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
-        }
-      });
-      if (appManifest.imports && appManifest.imports.length) {
-        grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
-      }
-    });
+    // _.each(apps, function (app) {
+    //   var appManifest = app.manifest;
+    //   _.each(app.plugins, function (plugin) {
+    //     if (plugin.imports && plugin.imports.length) {
+    //       grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
+    //     }
+    //   });
+    //   if (appManifest.imports && appManifest.imports.length) {
+    //     grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
+    //   }
+    // });
   });
 
   c8yUtil.registerAsync('c8yDeployUI:uploadZip', function () {
