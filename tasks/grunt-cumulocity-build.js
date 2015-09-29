@@ -342,7 +342,7 @@ module.exports = function (grunt) {
       },
       files: [{
         expand: true,
-        src: ['**/*'],
+        src: ['**/*', '!**/node_modules/**', '!cumulocity.json'],
         cwd: 'build/'
       }]
     }

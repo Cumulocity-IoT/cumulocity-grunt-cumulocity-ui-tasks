@@ -108,7 +108,7 @@ module.exports = function (grunt) {
       });
     }
     if (appCfg.branch) {
-      manifest.resourcesUrl = ['/', appCfg.contextPath, '/', appCfg.branch].join('');
+      manifest.resourcesUrl = '/m2m/' + appCfg.contextPath;
       // manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
     }
     _.each(manifest, function (val,  key) {
@@ -142,9 +142,9 @@ module.exports = function (grunt) {
   grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
-    'c8yDeployUI:zipBuilds',
     'c8yDeployUI:hgPullUpdate',
     'readManifests',
+    'c8yDeployUI:zipBuilds',
     'c8yDeployUI:prepareManifestsPack',
     'c8yDeployUI:writeManifestsPack'
   ]);
@@ -172,29 +172,24 @@ module.exports = function (grunt) {
     // grunt-cumulocity-build.js, search for "grunt.config.set('compress"
     var compressConf = grunt.config('compress');
     var buildConf = compressConf.build;
-
     // Go through apps
     _.each(config.targetCfg.applications, function (appCfg) {
       var cfg = getAppExtendedManifest(appCfg);
       if (cfg.contextPath === 'core') {
+        buildConf.files[0].dest = appCfg.branch + '/';
         return;
       }
       // clone default conf, set it up
       var newConf = _.cloneDeep(buildConf);
       newConf.options.archive = ['deploy', 'zips', cfg.contextPath, 'build.zip'].join('/');
-
       if (cfg.contextPath === 'c8ydata') {
         newConf.files[0].cwd = cfg.__dirname + '/';
-        newConf.files[0].src.push('!node_modules/**/*');
       }
       else {
         newConf.files[0].cwd = cfg.__dirname + '/build/';
       }
-      buildConf.files[0].dest = appCfg.branch + '/';
       newConf.files[0].dest = appCfg.branch + '/';
-      //add new conf to compress config
       compressConf[cfg.contextPath] = newConf;
-      grunt.log.ok(JSON.stringify(newConf));
     });
     grunt.config.set('compress', compressConf);
     grunt.task.run('compress');
@@ -278,8 +273,6 @@ module.exports = function (grunt) {
         'c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports',
         'c8yDeployUI:uploadZip'
       );
-      grunt.task.run('c8yDeployUI:uploadZip');
-      grunt.log.ok('Uploaded build.zip for: ' + appManifest.contextPath);
       _.each(app.plugins, function (plugin) {
         grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
       });
@@ -302,11 +295,13 @@ module.exports = function (grunt) {
     var appCfg = grunt.config.get('c8yAppRegister');
     var app = appCfg.app;
     var appId = appCfg.appId;
-    grunt.log.debug(app.contextPath);
-    grunt.log.debug(appId);
     var fileStream = fs.createReadStream(path.resolve(['zips', app.contextPath, 'build.zip'].join('/')));
     var uriPath = ['application/applications/', appId, '/binaries/'].join('');
-    return c8yRequest.upload(fileStream, uriPath);
+    return c8yRequest.upload(fileStream, uriPath).then(function () {
+      grunt.log.ok(['Uploaded build.zip for', app.contextPath].join(' '));
+    }, function (err) {
+      grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
+    });
   });
 
   grunt.registerTask('c8yDeployUI:appRegister', 'Register app from manifests pack', function (appContextPath, option) {
@@ -327,8 +322,6 @@ module.exports = function (grunt) {
     if (config.appManifests && config.appManifests.resourcesPassword) {
       appManifest.resourcesPassword = config.appManifests.resourcesPassword;
     }
-
-    appManifest.resourcesUrl
 
     grunt.config.set('c8yAppRegister', {app: app.manifest});
     grunt.task.run('c8yAppRegister');
