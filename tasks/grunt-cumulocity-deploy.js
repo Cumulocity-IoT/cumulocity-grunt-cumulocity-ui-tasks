@@ -108,7 +108,7 @@ module.exports = function (grunt) {
       });
     }
     if (appCfg.branch) {
-      manifest.resourcesUrl = '/m2m/' + appCfg.contextPath;
+      manifest.resourcesUrl = ['/', appCfg.contextPath, '/', appCfg.branch].join('');
       // manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
     }
     _.each(manifest, function (val,  key) {
@@ -172,23 +172,29 @@ module.exports = function (grunt) {
     // grunt-cumulocity-build.js, search for "grunt.config.set('compress"
     var compressConf = grunt.config('compress');
     var buildConf = compressConf.build;
-    // run compress for default values (core)
-    grunt.task.run('compress');
+
     // Go through apps
     _.each(config.targetCfg.applications, function (appCfg) {
       var cfg = getAppExtendedManifest(appCfg);
-      if (cfg.contextPath === 'core') { return; }
+      if (cfg.contextPath === 'core') {
+        return;
+      }
       // clone default conf, set it up
       var newConf = _.cloneDeep(buildConf);
       newConf.options.archive = ['deploy', 'zips', cfg.contextPath, 'build.zip'].join('/');
+
       if (cfg.contextPath === 'c8ydata') {
         newConf.files[0].cwd = cfg.__dirname + '/';
+        newConf.files[0].src.push('!node_modules/**/*');
       }
       else {
         newConf.files[0].cwd = cfg.__dirname + '/build/';
       }
+      buildConf.files[0].dest = appCfg.branch + '/';
+      newConf.files[0].dest = appCfg.branch + '/';
       //add new conf to compress config
       compressConf[cfg.contextPath] = newConf;
+      grunt.log.ok(JSON.stringify(newConf));
     });
     grunt.config.set('compress', compressConf);
     grunt.task.run('compress');
@@ -272,24 +278,24 @@ module.exports = function (grunt) {
         'c8yDeployUI:appRegister:' + appManifest.contextPath + ':noImports',
         'c8yDeployUI:uploadZip'
       );
-      // grunt.task.run('c8yDeployUI:uploadZip');
+      grunt.task.run('c8yDeployUI:uploadZip');
       grunt.log.ok('Uploaded build.zip for: ' + appManifest.contextPath);
-      // _.each(app.plugins, function (plugin) {
-      //   grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
-      // });
+      _.each(app.plugins, function (plugin) {
+        grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath + ':noImports');
+      });
     });
 
-    // _.each(apps, function (app) {
-    //   var appManifest = app.manifest;
-    //   _.each(app.plugins, function (plugin) {
-    //     if (plugin.imports && plugin.imports.length) {
-    //       grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
-    //     }
-    //   });
-    //   if (appManifest.imports && appManifest.imports.length) {
-    //     grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
-    //   }
-    // });
+    _.each(apps, function (app) {
+      var appManifest = app.manifest;
+      _.each(app.plugins, function (plugin) {
+        if (plugin.imports && plugin.imports.length) {
+          grunt.task.run('c8yDeployUI:pluginRegister:' + appManifest.contextPath + ':' + plugin.contextPath);
+        }
+      });
+      if (appManifest.imports && appManifest.imports.length) {
+        grunt.task.run('c8yDeployUI:appRegister:' + appManifest.contextPath);
+      }
+    });
   });
 
   c8yUtil.registerAsync('c8yDeployUI:uploadZip', function () {
@@ -321,6 +327,8 @@ module.exports = function (grunt) {
     if (config.appManifests && config.appManifests.resourcesPassword) {
       appManifest.resourcesPassword = config.appManifests.resourcesPassword;
     }
+
+    appManifest.resourcesUrl
 
     grunt.config.set('c8yAppRegister', {app: app.manifest});
     grunt.task.run('c8yAppRegister');
