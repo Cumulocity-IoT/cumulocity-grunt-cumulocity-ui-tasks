@@ -27,7 +27,8 @@
     "grunt-contrib-watch": "^0.6.1",
     "grunt-contrib-connect": "^0.7.1",
     "grunt-angular-templates": "^0.5.5",
-    "grunt-angular-gettext": "^2.1.0"
+    "grunt-angular-gettext": "^2.1.0",
+    "grunt-contrib-compress": "^0.12"
   },
   "devDependencies": {
     "chai": "^3.0.0",

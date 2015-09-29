@@ -41,8 +41,9 @@ module.exports = function (grunt) {
 
     return checkCredentials().then(function () {
       grunt.log.writeln('Registering ' + app.contextPath + ' application...');
-      return applicationSave(app).then(function () {
+      return applicationSave(app).then(function (newApp) {
         grunt.log.ok('Application ' + app.contextPath + ' registered.');
+        grunt.config.set('c8yAppRegister.appId', newApp.id);
         return done();
       }, onError);
     }, onError);
