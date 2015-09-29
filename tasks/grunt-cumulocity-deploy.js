@@ -108,8 +108,7 @@ module.exports = function (grunt) {
       });
     }
     if (appCfg.branch) {
-      manifest.resourcesUrl = '/m2m/' + appCfg.contextPath;
-      // manifest.resourcesUrl.replace(/raw\/[^\/]+/, 'raw/' + appCfg.branch);
+      manifest.resourcesUrl = ['/', appCfg.contextPath, '/', appCfg.branch].join('');
     }
     _.each(manifest, function (val,  key) {
       if (key.match('^__')) {
