@@ -2,12 +2,14 @@ var _ = require('lodash');
 var shell = require('shelljs');
 var fs = require('fs');
 var path = require('path');
+var Q = require('q');
 
 module.exports = function (grunt) {
   'use strict';
 
   var c8yUtil = require('../lib/c8yUtil')(grunt);
   var c8yRequest = require('../lib/c8yRequest')(grunt);
+  var inquirer = require('inquirer');
 
   var configKey = 'c8yDeployUI',
     targetCfgDefaults = {
@@ -107,8 +109,10 @@ module.exports = function (grunt) {
         manifest.imports.push(imp);
       });
     }
+
     if (appCfg.branch) {
-      manifest.resourcesUrl = ['/', appCfg.contextPath, '/', appCfg.branch].join('');
+      var packTenant = grunt.config('PACK_TENANT');
+      manifest.resourcesUrl = ['/', packTenant, '/', appCfg.contextPath, '/', appCfg.branch].join('');
     }
     _.each(manifest, function (val,  key) {
       if (key.match('^__')) {
@@ -139,6 +143,7 @@ module.exports = function (grunt) {
   }
 
   grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
+    'askTenant',
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
     'c8yDeployUI:hgPullUpdate',
@@ -147,6 +152,19 @@ module.exports = function (grunt) {
     'c8yDeployUI:prepareManifestsPack',
     'c8yDeployUI:writeManifestsPack'
   ]);
+
+  c8yUtil.registerAsync('askTenant', function () {
+    var defer = Q.defer();
+    inquirer.prompt([
+      {message: 'What is your cumulocity tenant?', name: 'tenant'}
+    ], function (answers) {
+      defer.resolve(answers.tenant);
+    });
+
+    return defer.promise.then(function (tenant) {
+      grunt.config.set('PACK_TENANT', tenant);
+    });
+  }, true);
 
   grunt.registerTask('c8yDeployUI:loadTargetConfig', 'Loads target config for deployment', function () {
     var config = getConfig(),
