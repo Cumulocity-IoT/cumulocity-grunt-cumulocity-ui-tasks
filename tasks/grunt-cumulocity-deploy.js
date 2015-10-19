@@ -107,9 +107,7 @@ module.exports = function (grunt) {
         manifest.imports.push(imp);
       });
     }
-    if (appCfg.branch) {
-      manifest.resourcesUrl = ['/', appCfg.contextPath, '/', appCfg.branch].join('');
-    }
+    manifest.resourcesUrl = ['/'].join('');
     _.each(manifest, function (val,  key) {
       if (key.match('^__')) {
         delete manifest[key];
