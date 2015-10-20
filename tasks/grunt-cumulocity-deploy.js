@@ -296,8 +296,21 @@ module.exports = function (grunt) {
     var appId = appCfg.appId;
     var fileStream = fs.createReadStream(path.resolve(['zips', app.contextPath, 'build.zip'].join('/')));
     var uriPath = ['application/applications/', appId, '/binaries/'].join('');
-    return c8yRequest.upload(fileStream, uriPath).then(function () {
+    return c8yRequest.upload(fileStream, uriPath).then(function (uploadedBinary) {
       grunt.log.ok(['Uploaded build.zip for', app.contextPath].join(' '));
+      grunt.task.run('c8yDeployUI:activateZip:' + uploadedBinary.id);
+    }, function (err) {
+      grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
+    });
+  });
+
+  c8yUtil.registerAsync('c8yDeployUI:activateZip', function (credentials, zipId) {
+    var appCfg = grunt.config.get('c8yAppRegister');
+    var app = appCfg.app;
+    var appId = appCfg.appId;
+    var uriPath = ['application/applications/', appId].join('');
+    return c8yRequest.put(uriPath, {activeVersionId: zipId}).then(function () {
+      grunt.log.ok(['Activated uploaded build.zip for', app.contextPath].join(' '));
     }, function (err) {
       grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
     });
