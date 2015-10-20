@@ -185,7 +185,7 @@ module.exports = function (grunt) {
       else {
         newConf.files[0].cwd = cfg.__dirname + '/build/';
       }
-      newConf.files[0].dest = appCfg.branch + '/';
+      newConf.files[0].dest = './';
       compressConf[cfg.contextPath] = newConf;
     });
     grunt.config.set('compress', compressConf);
