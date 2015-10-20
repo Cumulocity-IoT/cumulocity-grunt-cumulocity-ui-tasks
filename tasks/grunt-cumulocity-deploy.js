@@ -173,7 +173,7 @@ module.exports = function (grunt) {
     _.each(config.targetCfg.applications, function (appCfg) {
       var cfg = getAppExtendedManifest(appCfg);
       if (cfg.contextPath === 'core') {
-        buildConf.files[0].dest = appCfg.branch + '/';
+        buildConf.files[0].dest = './';
         return;
       }
       // clone default conf, set it up
