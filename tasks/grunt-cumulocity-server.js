@@ -2,8 +2,11 @@ var url = require('url'),
   path = require('path'),
   fs = require('fs'),
   _ = require('lodash'),
-  st = require('connect-static-transform'),
-  httpProxy = require('http-proxy');
+  httpProxy = require('http-proxy'),
+  nunjucks = require('nunjucks'),
+  serveStatic = require('serve-static'),
+  stream = require('stream'),
+  util = require('util');
 
 module.exports = function (grunt) {
   'use strict';
@@ -37,7 +40,7 @@ module.exports = function (grunt) {
   function isIndex(req) {
     var app = req.localapp,
       plugin = req.localplugin,
-      regex = app && new RegExp('/apps/' + app.contextPath + '/'),
+      regex = app && new RegExp('/apps/' + app.contextPath + '/?'),
       extractUrl = regex ? req.url.replace(regex, '') : 'none';
     return !extractUrl || extractUrl.match(/^index.html/);
   }
@@ -105,6 +108,11 @@ module.exports = function (grunt) {
     return JSON.stringify(serverManifest);
   }
 
+  var TransformStream = function() {
+    stream.Transform.call(this, {objectMode: true});
+  };
+  util.inherits(TransformStream, stream.Transform);
+
   function proxyServerRequest(req, res, next) {
     var toProxy = [
         'inventory',
@@ -159,6 +167,17 @@ module.exports = function (grunt) {
     }
   }
 
+  nunjucks.configure(__dirname + '/../views/');
+  function serveIndex(res) {
+    var coreconfig = grunt.config('coreconfig'),
+      context = {
+        config: coreconfig
+      },
+      html = nunjucks.render('index.html', context);
+    res.setHeader('Content-Type', 'text/html');
+    return res.end(html);
+  }
+
   function staticLocal(connect, req, res, next, isTemp) {
     var staticMiddleware;
 
@@ -168,30 +187,35 @@ module.exports = function (grunt) {
         res.setHeader('Content-Type', 'text/css');
       }
 
+      //for now well have this just for us. if the cumulocity-ui is not present use the default strategy.
+      if (isIndex(req) && grunt.config('coreconfig')) {
+        return serveIndex(res);
+      }
+
       // Serve local index
       if (isCorePresent() && isIndex(req)) {
         var coreApp = getApp('core');
         req.url = '/index.html';
-        staticMiddleware = mnt(connect, coreApp.__dirnameTemp);
+        staticMiddleware = mnt(coreApp.__dirnameTemp);
         return staticMiddleware(req, res, next);
       }
 
       // Serving angular-i18n locally:
       if (req.url.match('locales/angular')) {
         req.url = req.url.replace(/.*locales\/angular/, '');
-        staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components/angular-i18n');
+        staticMiddleware = mnt(req.localapp.__dirname + '/bower_components/angular-i18n');
         return staticMiddleware(req, res, next);
       }
 
       // Serve bower components
       if (req.url.match('bower_components')) {
         req.url = req.url.replace(/.*bower_components/, '');
-        staticMiddleware = mnt(connect, req.localapp.__dirname + '/bower_components');
+        staticMiddleware = mnt(req.localapp.__dirname + '/bower_components');
         return staticMiddleware(req, res, next);
       }
 
       var dirnameVal = '__dirname' + (isTemp ? 'Temp' : '');
-      staticMiddleware = mnt(connect, req.localapp[dirnameVal]);
+      staticMiddleware = mnt(req.localapp[dirnameVal]);
 
       req.url = req.orig_url.replace('/apps/' + req.localapp.contextPath, '');
       if (req.localplugin) {
@@ -199,24 +223,28 @@ module.exports = function (grunt) {
             _path = path.resolve(req.localplugin[dirnameVal] + '/' + file);
 
         if (req.url.match(/(js|html|css)$/) && fs.existsSync(_path)) {
-          var stream = fs.createReadStream(_path),
-            res_write = res.write,
-            res_end = res.end,
-            out = '';
+          var filestream = fs.createReadStream(_path),
+            transform = new TransformStream();
 
-          stream.pipe(res);
-
-          res.write = function (data) {
-            out = out + data.toString();
-            out = placeholders(req.localplugin, out);
-            res_write.call(res, out);
+          transform._transform = function(data, enc, cb) {
+            var d = data && data.toString();
+            d = placeholders(req.localplugin, d);
+            cb(null, d);
           };
 
-          res.end = function (data) {
-            var _out = '' + (data ? data.toString() : '');
-            _out = placeholders(req.localplugin, _out);
-            res_end.call(res, _out);
-          };
+          filestream.pipe(transform).pipe(res);
+
+          // res.write = function (data) {
+          //   out = out + data.toString();
+          //   out = placeholders(req.localplugin, out);
+          //   res_write.call(res, out);
+          // };
+          //
+          // res.end = function (data) {
+          //   var _out = '' + (data ? data.toString() : '');
+          //   _out = placeholders(req.localplugin, _out);
+          //   res_end.call(res, _out);
+          // };
           return;
         } else if (req.url.match(/(json)$/) && !fs.existsSync(_path) && !isTemp) {
           return staticMiddleware(req, res, function () {
@@ -225,7 +253,7 @@ module.exports = function (grunt) {
             next();
           });
         } else {
-          staticMiddleware = mnt(connect, req.localplugin[dirnameVal]);
+          staticMiddleware = mnt(req.localplugin[dirnameVal]);
           req.url = req.orig_url.replace('/apps/' + req.localplugin.__rootContextPath, '');
         }
       }
@@ -242,9 +270,9 @@ module.exports = function (grunt) {
     return next();
   }
 
-  function mnt(connect, dir) {
+  function mnt(dir) {
     dir = grunt.template.process(dir, grunt.config);
-    return connect.static(path.resolve(dir));
+    return serveStatic(path.resolve(dir));
   }
 
   function placeholders(plugin, text) {
@@ -282,13 +310,7 @@ module.exports = function (grunt) {
       options: {
         middleware: connectMidlewares
       }
-    }//,
-    // test: {
-    //   options: {
-    //     middleware: connectMidlewares,
-    //     keepalive: false
-    //   }
-    // }
+    }
   });
 
 

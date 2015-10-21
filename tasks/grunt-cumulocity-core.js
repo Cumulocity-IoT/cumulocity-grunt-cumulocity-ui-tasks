@@ -24,7 +24,7 @@ function task(grunt) {
   }
 
   function getCoreConfig() {
-    var path_data = PATH_OBJ;
+    var path_data = PATH_OBJ,
       config = path_data.path ? grunt.file.readJSON(path_data.path) : null;
     return config;
   }
@@ -67,7 +67,14 @@ function task(grunt) {
           },
 
           css: function () {
-            return _.union(this.cssvendor(), this.cssui());
+            return _.union(this.cssvendor(), this.branding());
+          },
+
+          branding: function(isBuild) {
+            var plugin = grunt.config('instance.branding') || 'c8yBranding',
+              file = isBuild ? 'style.css' : 'style-less.css',
+              path = '/apps/core/' + plugin + '/' + file;
+            return [path];
           },
 
           jsvendor: function () {
