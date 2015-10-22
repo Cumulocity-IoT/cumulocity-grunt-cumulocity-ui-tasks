@@ -5,8 +5,7 @@ module.exports = function (grunt) {
   'use strict';
 
   function readPluginsForApp(appManifest) {
-    var plugins = [],
-      manifestPath = appManifest.__dirname + '/{*/,}plugins/*/cumulocity.json',
+    var manifestPath = appManifest.__dirname + '/{*/,}plugins/*/cumulocity.json',
       manifestPaths = grunt.file.expand(manifestPath) || [];
 
     return manifestPaths.map(function (_path) {

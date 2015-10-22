@@ -49,7 +49,7 @@ function task(grunt) {
   }
 
 
-  grunt.task.registerTask('core-config', function () {
+  grunt.task.registerTask('c8y-read-core-config', function () {
     var config = grunt.config('coreconfig');
 
     if (!config) {
@@ -131,7 +131,7 @@ function task(grunt) {
               .filter('remote')
               .pluck('remote')
               .value();
-            return _.union(cssVendor, ['/apps/core/styles/main.css']);
+            return _.union(cssVendor, this.branding());
           },
 
           jstest: function () {
@@ -193,6 +193,11 @@ function task(grunt) {
       .concat(files).concat(specFiles || []);
     grunt.config('karma', karmaCfg);
   });
+
+  grunt.registerTask('core-config', [
+    'c8y-read-core-config',
+    'c8y-instance-options'
+  ]);
 }
 
 module.exports = task;

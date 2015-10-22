@@ -1,5 +1,7 @@
 var _ = require('lodash'),
-  request = require('request');
+  request = require('request'),
+  fs = require('fs'),
+  index = require('../lib/c8yIndex');
 
 module.exports = function (grunt) {
   'use strict';
@@ -159,8 +161,7 @@ module.exports = function (grunt) {
     }
 
     if (plugin.ngModules && grunt.file.exists(grunt.template.process('<%= paths.plugins%>/' + _plugin + '/views'))) {
-      var ngview_cfg = {},
-        ngview_task = ['ngtemplates', 'plugin_' + _plugin];
+      var ngview_task = ['ngtemplates', 'plugin_' + _plugin];
       grunt.config(ngview_task.join('.'),{
         cwd: '<%= paths.plugins %>/' + _plugin + '/',
         src: ['views/*.html','views/**/*.html'],
@@ -169,8 +170,8 @@ module.exports = function (grunt) {
           prefix: ['/apps', _app, _plugin, ''].join('/'),
           module: plugin.ngModules[0],
           bootstrap: function(module, script) {
-            script = "angular.module('" + module + "').run(['$templateCache', function($templateCache) {" +
-              script + '\n}]);';
+            script = 'angular.module(\'' + module + '\').run([\'$templateCache\', function($templateCache) {' +
+              script + '}]);';
             return replaceStringsInCode(_app, _plugin, script);
           },
           htmlmin: {
@@ -325,6 +326,29 @@ module.exports = function (grunt) {
     });
   }
 
+  function createIndex() {
+    var output = grunt.template.process('<%= paths.build %>/index.html'),
+      coreconfig = grunt.config('coreconfig'),
+      context = {
+        coreconfig: coreconfig,
+        files: {
+          css: coreconfig.cssForHtmlBuild(),
+          js: coreconfig.jsForHtmlBuild()
+        },
+        instance: grunt.config('instanceOptions')
+      },
+      html = index.render(context),
+      done = this.async();
+
+    fs.writeFile(output, html, function (err) {
+      if (err) {
+        grunt.error(err);
+      } else {
+        done();
+      }
+    });
+  }
+
   grunt.loadNpmTasks('grunt-contrib-less');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-copy');
@@ -365,9 +389,10 @@ module.exports = function (grunt) {
     'Replaces string for plugin path',
     replaceStringTask);
 
-  grunt.registerTask('downloadIndex',
-    'Download index.html from our default endpoint',
-    downloadIndex);
+  grunt.registerTask('indexBuild',
+    'Creates an index.html file from template and places it in the build folder.',
+    createIndex);
+  grunt.registerTask('downloadIndex', ['indexBuild']);
 
   grunt.registerTask('pluginPreAll', [
     'readManifests',
@@ -377,7 +402,7 @@ module.exports = function (grunt) {
   grunt.registerTask('pluginBuildAll', [
     'readManifests',
     'pluginBuild:all',
-    'downloadIndex',
+    'indexBuild',
     'clean:temp'
   ]);
 

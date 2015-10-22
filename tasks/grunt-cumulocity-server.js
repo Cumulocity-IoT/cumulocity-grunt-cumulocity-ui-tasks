@@ -3,10 +3,10 @@ var url = require('url'),
   fs = require('fs'),
   _ = require('lodash'),
   httpProxy = require('http-proxy'),
-  nunjucks = require('nunjucks'),
   serveStatic = require('serve-static'),
   stream = require('stream'),
-  util = require('util');
+  util = require('util'),
+  index = require('../lib/c8yIndex');
 
 module.exports = function (grunt) {
   'use strict';
@@ -167,13 +167,17 @@ module.exports = function (grunt) {
     }
   }
 
-  nunjucks.configure(__dirname + '/../views/');
   function serveIndex(res) {
     var coreconfig = grunt.config('coreconfig'),
       context = {
-        config: coreconfig
+        coreconfig: coreconfig,
+        files: {
+          css: coreconfig.cssForHtml(),
+          js: coreconfig.jsForHtml()
+        },
+        instance: grunt.config('instanceOptions')
       },
-      html = nunjucks.render('index.html', context);
+      html = index.render(context);
     res.setHeader('Content-Type', 'text/html');
     return res.end(html);
   }
