@@ -42,7 +42,7 @@ module.exports = function (grunt) {
       grunt.task.run('extractLocalesCore');
       return;
     }
-    
+
     if (app.contextPath === 'c8ydata') {
       grunt.task.run('extractLocalesData');
       return;
@@ -257,7 +257,7 @@ module.exports = function (grunt) {
       existingAppManifest = grunt.file.exists(existingAppManifestPath) ? grunt.file.readJSON(existingAppManifestPath) : {},
       originalAppManifest = _.extend({}, existingAppManifest),
       appsWithI18n = [];
-  
+
     if (!app) {
       grunt.log.fail('Could not get manifest for requested app!');
       return appsWithI18n;
@@ -316,7 +316,7 @@ module.exports = function (grunt) {
       imports.push(pluginImport);
     }
   }
-  
+
   function createOrUpdateI18nPlugins(appsWithI18n) {
     var promises = [];
     _.each(appsWithI18n, function (appContextPath) {
@@ -336,7 +336,7 @@ module.exports = function (grunt) {
       grunt.file.write('plugins/i18n-' + appContextPath + '/cumulocity.json', JSON.stringify(pluginManifest, null, 2));
       grunt.log.ok('Created manifest for plugin: ' + 'i18n-' + appContextPath +  '.');
       promises.push(
-        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '.pot')
+        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '/locales.pot')
         .then(function (contents) {
           grunt.file.write('plugins/i18n-' + appContextPath + '/locales/locales.pot', contents);
           grunt.log.ok('Downloaded translation template for ' + 'i18n-' + appContextPath + ' plugin: locales/locales.pot');
@@ -349,7 +349,7 @@ module.exports = function (grunt) {
     } else {
       var pluginManifest = grunt.file.readJSON('plugins/i18n-' + appContextPath + '/cumulocity.json');
       promises.push(
-        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '.pot')
+        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '/locales.pot')
         .then(function (contents) {
           var originalContents = grunt.file.read('plugins/i18n-' + appContextPath + '/locales/locales.pot');
           if (!_.isEqual(originalContents, contents)) {
@@ -357,7 +357,7 @@ module.exports = function (grunt) {
             grunt.log.warn('Downloaded updated translation template for ' + 'i18n-' + appContextPath + ' plugin: locales/locales.pot');
           } else {
             grunt.log.ok('No newer translation template available for ' + 'i18n-' + appContextPath + ' plugin.');
-          }          
+          }
         }, function (err) {
           grunt.log.fail('Could not download translation template for ' + 'i18n-' + appContextPath + ' plugin!');
         })
