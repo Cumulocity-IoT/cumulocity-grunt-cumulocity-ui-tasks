@@ -5,6 +5,7 @@ module.exports = function (grunt) {
     c8yUtil = require('../lib/c8yUtil')(grunt),
     Q = require('q'),
     JSONPath = require('JSONPath'),
+    path = require('path'),
     _ = require('lodash');
 
   grunt.loadNpmTasks('grunt-angular-gettext');
@@ -64,7 +65,7 @@ module.exports = function (grunt) {
 
     config.files[app.__dirname + '/locales/locales.pot'] = pluginsFiles;
     if (dataApp) {
-      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = pluginsFiles;
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = pluginsFiles;
     }
     extractLocales(target, config);
   }
@@ -101,7 +102,7 @@ module.exports = function (grunt) {
 
     config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
     if (dataApp) {
-      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = coreFiles;
     }
     extractLocales(target, config);
   }
@@ -151,7 +152,7 @@ module.exports = function (grunt) {
       });
     });
 
-    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = gettextJsFiles;
+    config.files[app.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = gettextJsFiles;
     extractLocales(target, config);
   }
 
@@ -181,7 +182,22 @@ module.exports = function (grunt) {
   }
 
   function coreCompileLocales() {
-    compileLocales('core', 'app/', '<%= paths.temp %>/');
+    compileLocales('core', 'app/locales/po', '<%= paths.temp %>/locales');
+  }
+
+  function c8ydataCompileLocales() {
+    var apps = _.chain(grunt.file.expand('locales/*'))
+      .filter(isDir)
+      .map(path.basename)
+      .value();
+
+    _.each(apps, function (appContextPath) {
+      compileLocales('c8ydata_' + appContextPath, 'locales/' + appContextPath + '/po', 'locales/' + appContextPath + '/json');
+    });
+  }
+
+  function isDir(path) {
+    return grunt.file.isDir(path);
   }
 
   function pluginCompileLocales(pluginContextPath) {
@@ -192,7 +208,7 @@ module.exports = function (grunt) {
     var srcPath = '<%= paths.plugins %>/' + pluginContextPath + '/',
       destPath = '<%= paths.temp %>/plugins/' + pluginContextPath + '/';
 
-    compileLocales('plugin_' + pluginContextPath, srcPath, destPath);
+    compileLocales('plugin_' + pluginContextPath, srcPath + '/locales/po', destPath + '/locales');
   }
 
   function compileLocales(target, srcPath, destPath) {
@@ -204,8 +220,8 @@ module.exports = function (grunt) {
         files: [{
           expand: true,
           dot: true,
-          cwd: srcPath + 'locales/po',
-          dest: destPath + 'locales',
+          cwd: srcPath,
+          dest: destPath,
           src: ['*.po'],
           ext: '.json'
         }]
@@ -386,6 +402,7 @@ module.exports = function (grunt) {
   ]);
 
   grunt.registerTask('compileLocalesCore', 'Compiles .po files to .json files in core', coreCompileLocales);
+  grunt.registerTask('compileLocalesData', 'Compiles .po files to .json files in c8ydata', c8ydataCompileLocales);
   grunt.registerTask('compileLocales', 'Compiles .po files to .json files in plugin', pluginCompileLocales);
   grunt.registerTask('compileLocalesAll', 'Compiles .po files to .json files in core and all plugins', [
     'readManifests',
