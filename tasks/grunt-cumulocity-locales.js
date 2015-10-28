@@ -5,6 +5,7 @@ module.exports = function (grunt) {
     c8yUtil = require('../lib/c8yUtil')(grunt),
     Q = require('q'),
     JSONPath = require('JSONPath'),
+    path = require('path'),
     _ = require('lodash');
 
   grunt.loadNpmTasks('grunt-angular-gettext');
@@ -42,7 +43,7 @@ module.exports = function (grunt) {
       grunt.task.run('extractLocalesCore');
       return;
     }
-    
+
     if (app.contextPath === 'c8ydata') {
       grunt.task.run('extractLocalesData');
       return;
@@ -64,7 +65,7 @@ module.exports = function (grunt) {
 
     config.files[app.__dirname + '/locales/locales.pot'] = pluginsFiles;
     if (dataApp) {
-      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = pluginsFiles;
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = pluginsFiles;
     }
     extractLocales(target, config);
   }
@@ -101,7 +102,7 @@ module.exports = function (grunt) {
 
     config.files[app.__dirname + '/locales/locales.pot'] = coreFiles;
     if (dataApp) {
-      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '.pot'] = coreFiles;
+      config.files[dataApp.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = coreFiles;
     }
     extractLocales(target, config);
   }
@@ -151,7 +152,7 @@ module.exports = function (grunt) {
       });
     });
 
-    config.files[app.__dirname + '/locales/' + app.contextPath + '.pot'] = gettextJsFiles;
+    config.files[app.__dirname + '/locales/' + app.contextPath + '/locales.pot'] = gettextJsFiles;
     extractLocales(target, config);
   }
 
@@ -181,7 +182,22 @@ module.exports = function (grunt) {
   }
 
   function coreCompileLocales() {
-    compileLocales('core', 'app/', '<%= paths.temp %>/');
+    compileLocales('core', 'app/locales/po', '<%= paths.temp %>/locales');
+  }
+
+  function c8ydataCompileLocales() {
+    var apps = _.chain(grunt.file.expand('locales/*'))
+      .filter(isDir)
+      .map(path.basename)
+      .value();
+
+    _.each(apps, function (appContextPath) {
+      compileLocales('c8ydata_' + appContextPath, 'locales/' + appContextPath + '/po', 'locales/' + appContextPath + '/json');
+    });
+  }
+
+  function isDir(path) {
+    return grunt.file.isDir(path);
   }
 
   function pluginCompileLocales(pluginContextPath) {
@@ -192,7 +208,7 @@ module.exports = function (grunt) {
     var srcPath = '<%= paths.plugins %>/' + pluginContextPath + '/',
       destPath = '<%= paths.temp %>/plugins/' + pluginContextPath + '/';
 
-    compileLocales('plugin_' + pluginContextPath, srcPath, destPath);
+    compileLocales('plugin_' + pluginContextPath, srcPath + '/locales/po', destPath + '/locales');
   }
 
   function compileLocales(target, srcPath, destPath) {
@@ -204,8 +220,8 @@ module.exports = function (grunt) {
         files: [{
           expand: true,
           dot: true,
-          cwd: srcPath + 'locales/po',
-          dest: destPath + 'locales',
+          cwd: srcPath,
+          dest: destPath,
           src: ['*.po'],
           ext: '.json'
         }]
@@ -257,7 +273,7 @@ module.exports = function (grunt) {
       existingAppManifest = grunt.file.exists(existingAppManifestPath) ? grunt.file.readJSON(existingAppManifestPath) : {},
       originalAppManifest = _.extend({}, existingAppManifest),
       appsWithI18n = [];
-  
+
     if (!app) {
       grunt.log.fail('Could not get manifest for requested app!');
       return appsWithI18n;
@@ -316,7 +332,7 @@ module.exports = function (grunt) {
       imports.push(pluginImport);
     }
   }
-  
+
   function createOrUpdateI18nPlugins(appsWithI18n) {
     var promises = [];
     _.each(appsWithI18n, function (appContextPath) {
@@ -336,7 +352,7 @@ module.exports = function (grunt) {
       grunt.file.write('plugins/i18n-' + appContextPath + '/cumulocity.json', JSON.stringify(pluginManifest, null, 2));
       grunt.log.ok('Created manifest for plugin: ' + 'i18n-' + appContextPath +  '.');
       promises.push(
-        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '.pot')
+        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '/locales.pot')
         .then(function (contents) {
           grunt.file.write('plugins/i18n-' + appContextPath + '/locales/locales.pot', contents);
           grunt.log.ok('Downloaded translation template for ' + 'i18n-' + appContextPath + ' plugin: locales/locales.pot');
@@ -349,7 +365,7 @@ module.exports = function (grunt) {
     } else {
       var pluginManifest = grunt.file.readJSON('plugins/i18n-' + appContextPath + '/cumulocity.json');
       promises.push(
-        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '.pot')
+        c8yRequest.get('apps/c8ydata/locales/' + appContextPath + '/locales.pot')
         .then(function (contents) {
           var originalContents = grunt.file.read('plugins/i18n-' + appContextPath + '/locales/locales.pot');
           if (!_.isEqual(originalContents, contents)) {
@@ -357,7 +373,7 @@ module.exports = function (grunt) {
             grunt.log.warn('Downloaded updated translation template for ' + 'i18n-' + appContextPath + ' plugin: locales/locales.pot');
           } else {
             grunt.log.ok('No newer translation template available for ' + 'i18n-' + appContextPath + ' plugin.');
-          }          
+          }
         }, function (err) {
           grunt.log.fail('Could not download translation template for ' + 'i18n-' + appContextPath + ' plugin!');
         })
@@ -386,6 +402,7 @@ module.exports = function (grunt) {
   ]);
 
   grunt.registerTask('compileLocalesCore', 'Compiles .po files to .json files in core', coreCompileLocales);
+  grunt.registerTask('compileLocalesData', 'Compiles .po files to .json files in c8ydata', c8ydataCompileLocales);
   grunt.registerTask('compileLocales', 'Compiles .po files to .json files in plugin', pluginCompileLocales);
   grunt.registerTask('compileLocalesAll', 'Compiles .po files to .json files in core and all plugins', [
     'readManifests',
