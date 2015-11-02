@@ -115,10 +115,10 @@ module.exports = function (grunt) {
           '$..label.[input,output]',
           '$..description',
           '$..category',
-          '$..paramGroups[input,output].label',
-          '$..paramGroups[input,output].params[label,default]',
-          '$..paramGroups[input,output].label',
-          '$..paramGroups[input,output].params.stepTypes[label,default]'
+          '$..paramGroups.[input,output].label',
+          '$..paramGroups.[input,output].params.[label,default]',
+          '$..paramGroups.[input,output].label',
+          '$..paramGroups.[input,output].params.stepTypes.[label,default]'
         ],
         'devicecommands/*.json': [
           '$.name',
