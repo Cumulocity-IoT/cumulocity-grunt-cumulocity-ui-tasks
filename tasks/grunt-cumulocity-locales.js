@@ -142,7 +142,9 @@ module.exports = function (grunt) {
         _.each(jsonPaths, function (jsonPath) {
           var txts = JSONPath.eval(obj, jsonPath);
           _.each(txts, function (txt) {
-            gettextJs += 'gettext(\'' + txt + '\');\n';
+            if (_.isString(txt)) {
+              gettextJs += 'gettext(\'' + txt + '\');\n';
+            }
           });
         });
         var gettextJsFilePath = app.__dirnameTemp + '/locales/' + file.substr(app.__dirname.length + 1);
