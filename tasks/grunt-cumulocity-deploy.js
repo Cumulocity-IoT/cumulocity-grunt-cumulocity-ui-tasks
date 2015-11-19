@@ -136,6 +136,13 @@ module.exports = function (grunt) {
     return grunt.option('manifests') || 'manifests.json';
   }
 
+  function getAppArchivePath(app) {
+    var config = getConfig(),
+      customArchivePath = (_.find(config.manifestsPack.apps, {manifest: {contextPath: app.contextPath}}) || {}).archive,
+      defaultArchivePath = ['zips', app.contextPath, 'build.zip'].join('/');
+    return customArchivePath || defaultArchivePath;
+  }
+
   grunt.registerTask('c8yDeployUI:packManifests', 'Exports manifests to manifests pack', [
     'readManifests',
     'c8yDeployUI:loadTargetConfig',
@@ -292,10 +299,11 @@ module.exports = function (grunt) {
     var appCfg = grunt.config.get('c8yAppRegister');
     var app = appCfg.app;
     var appId = appCfg.appId;
-    var fileStream = fs.createReadStream(path.resolve(['zips', app.contextPath, 'build.zip'].join('/')));
+    var archivePath = getAppArchivePath(app);
+    var fileStream = fs.createReadStream(path.resolve(archivePath));
     var uriPath = ['application/applications/', appId, '/binaries/'].join('');
     return c8yRequest.upload(fileStream, uriPath).then(function (uploadedBinary) {
-      grunt.log.ok(['Uploaded build.zip for', app.contextPath].join(' '));
+      grunt.log.ok(['Uploaded', archivePath, 'for', app.contextPath].join(' '));
       grunt.task.run('c8yDeployUI:activateZip:' + uploadedBinary.id);
     }, function (err) {
       grunt.fail.fatal(['ERROR', err.statusCode, err.body && err.body.message].join(' :: '));
