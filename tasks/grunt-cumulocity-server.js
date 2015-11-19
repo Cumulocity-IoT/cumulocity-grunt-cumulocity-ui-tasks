@@ -112,6 +112,7 @@ module.exports = function (grunt) {
         'alarm',
         'audit',
         'event',
+        'export',
         'devicecontrol',
         'measurement',
         'identity',
