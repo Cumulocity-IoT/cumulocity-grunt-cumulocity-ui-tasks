@@ -3,14 +3,15 @@ var url = require('url'),
   fs = require('fs'),
   _ = require('lodash'),
   st = require('connect-static-transform'),
-  httpProxy = require('http-proxy');
+  httpProxy = require('http-proxy'),
+  request = require('request');
 
 module.exports = function (grunt) {
   'use strict';
 
   var port = grunt.config('cumulocity.port') || grunt.option('port');
   grunt.config('cumulocity.port', port);
-
+  var LOCAL_PROXY = grunt.config('cumulocity.localproxy');
   var TARGET = [
     grunt.config('cumulocity.protocol'),
     '://',
@@ -22,6 +23,12 @@ module.exports = function (grunt) {
     target: TARGET
   });
 
+  if (LOCAL_PROXY) {
+    request = request.defaults({
+      proxy: LOCAL_PROXY
+    });
+    grunt.log.debug('LOCAL PROXY: ', LOCAL_PROXY);
+  }
 
   function isCorePresent() {
     return !!getApp('core');
@@ -154,6 +161,7 @@ module.exports = function (grunt) {
         };
       }
 
+      return req.pipe(request(TARGET + req.url)).pipe(res);
       return proxy.web(req, res);
     } else {
       next();
