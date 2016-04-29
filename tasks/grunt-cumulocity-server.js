@@ -12,7 +12,6 @@ module.exports = function (grunt) {
   var port = grunt.config('cumulocity.port') || grunt.option('port');
   grunt.config('cumulocity.port', port);
   var LOCAL_PROXY = grunt.config('cumulocity.localproxy');
-  var LOCAL_PROXY_AUTH = LOCAL_PROXY ? url.parse(LOCAL_PROXY).auth : undefined;
   var TARGET = [
     grunt.config('cumulocity.protocol'),
     '://',
