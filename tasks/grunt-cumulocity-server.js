@@ -21,7 +21,7 @@ module.exports = function (grunt) {
   ].join(''),
     proxy = httpProxy.createServer({
     secure: false,
-    target: TARGET,
+    target: TARGET
   });
 
   if (LOCAL_PROXY) {
