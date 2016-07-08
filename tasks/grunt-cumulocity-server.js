@@ -49,7 +49,6 @@ module.exports = function (grunt) {
     return !extractUrl || extractUrl.match(/^index.html/);
   }
 
-
   function saveOriginal(req, res, next) {
     req.orig_url = req.url;
     next();
@@ -60,8 +59,8 @@ module.exports = function (grunt) {
       pathMatch = _path.match(/^\/apps\/([^\/]+)\/?/),
       appContextPath = pathMatch && pathMatch[1],
       apps = grunt.config('localapps');
-    if (appContextPath) {
 
+    if (appContextPath) {
       req.localapp = _.find(apps, function (app) {
         return app.contextPath === appContextPath;
       });
@@ -85,7 +84,6 @@ module.exports = function (grunt) {
 
     return next();
   }
-
 
   function bower_components(req, res, next) {
     if (req.url.match('bower_components')) {
@@ -145,6 +143,13 @@ module.exports = function (grunt) {
         req.url = '/apps/core/index.html';
       }
 
+      grunt.log.debug('Requested: ' + req.url);
+      var matches = req.url.match(new RegExp('^\\/apps\\/' + req.localapp.contextPath + '\\/(.+?)_(.+?)\\/(.+)$'));
+      if (matches && matches.length > 0) {
+        req.url = '/apps/core/' + (matches[1] !== 'core' ? (matches[1] + '_') : ('')) + matches[2] + '/' + matches[3];
+      }
+      grunt.log.debug('Fetched remotely: ' + TARGET + req.url);
+
       delete req.headers.host;
 
       if (req.url.match('manifest')) {
@@ -162,7 +167,6 @@ module.exports = function (grunt) {
       }
 
       return req.pipe(request(TARGET + req.url)).pipe(res);
-      return proxy.web(req, res);
     } else {
       next();
     }
